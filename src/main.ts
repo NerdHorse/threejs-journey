@@ -2,9 +2,6 @@ import { World } from './World/World';
 import { Loader } from './World/systems/Loader';
 import { Color } from 'three';
 import { Menu } from './World/systems/GUI';
-
-document.querySelector('#h1')?.append('Three.js Template');
-
 async function main() {
   const container = document.querySelector(
     '#scene-container'
