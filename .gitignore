@@ -1,0 +1,5 @@
+/node_modules
+/blendFiles/*.blend1
+*.log
+*.blend1
+.idea
