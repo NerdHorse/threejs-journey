@@ -24,8 +24,6 @@ import { GUI } from 'dat.gui';
 export class Character{
   obj:Object3D
   userData:ICharacterUserData
-  canvas:HTMLCanvasElement;
-  canvasCtx:CanvasRenderingContext2D;
   mixer:AnimationMixer
   actions:{
     running:AnimationAction,
@@ -142,24 +140,9 @@ export class Character{
      }
 
      if(remake){
-       let material:MeshLambertMaterial;
-       let canvas:HTMLCanvasElement;
-       let texture:Texture;
-       let canvasCtx:CanvasRenderingContext2D;
 
        if(this.obj != null){
          World.scene.remove(this.obj)
-         canvas = this.canvas;
-         canvasCtx = this.canvasCtx;
-       }else{
-         material = new MeshLambertMaterial();
-         let textureObjs = TextureComposer.characterTextureMaker(this.userData);
-         canvas = textureObjs.canvas;
-         canvasCtx = textureObjs.ctx;
-         texture = new Texture(canvas);
-         texture.needsUpdate = true;
-         material.map = texture;
-
        }
        let mesh = this.meshMaker(this.userData,World.materials.types[Menu.generalData.material.selected]);
 
@@ -197,8 +180,6 @@ export class Character{
 
        World.scene.add(container);
        this.obj = container;
-       this.canvas = canvas;
-       this.canvasCtx = canvasCtx;
        this.mixer = mixer;
        this.uvOri = uvOri;
        this.actions = actions;
