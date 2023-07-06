@@ -192,7 +192,9 @@ class MenuManager{
     let scene = main.addFolder('Scene');
     scene.open();
 
-    let textureSize = scene.add(this.generalData, "texture_size",  [256,512,1024,2048])
+    let textureSize = scene.add(this.generalData, "texture_size",  [256,512,1024,2048,4096]).onFinishChange((k)=>{
+      TextureComposer.updateTextureSize(k);
+    })
     scene.add(this.generalData.renderer, "toneMapping",[
       "NoToneMapping",
       "LinearToneMapping",
@@ -289,7 +291,7 @@ class MenuManager{
     charsMainFolder.open();
 
 
-    charsMainFolder.add(this.generalData.characters, "total",this.makeArrayFromRange(0,100)).onFinishChange(()=>this.onCharactersTotalChange())
+    charsMainFolder.add(this.generalData.characters, "total",this.makeArrayFromRange(0,224)).onFinishChange(()=>this.onCharactersTotalChange())
     charsMainFolder.add(this.generalData.characters, "moving").onFinishChange(()=>this.onCharactersMovingChange())
 
 

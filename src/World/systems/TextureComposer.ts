@@ -11,7 +11,6 @@ class TextureComposerClass{
   private canvas:HTMLCanvasElement
   private canvasCtx:CanvasRenderingContext2D
   mainTexture:Texture
-
   constructor() {
 
 
@@ -43,34 +42,10 @@ class TextureComposerClass{
     let partsTotal = World.elements.characters.length + ( Menu.generalData.street?1:0);
     let gridSize = 1;
     if(partsTotal > 1){
-      if(partsTotal <=4 ){
-        scale = 1/2
-        gridSize = 2;
-      }else if(partsTotal <= 9){
-        scale = 1/3
-        gridSize = 3;
-      }else if(partsTotal <= 16){
-        scale = 1/4
-        gridSize = 4;
-      }else if(partsTotal <= 25){
-        scale = 1/5
-        gridSize = 5;
-      }else if(partsTotal <= 36){
-        scale = 1/6
-        gridSize = 6;
-      }else if(partsTotal <= 49){
-        scale = 1/7
-        gridSize = 7;
-      }else if(partsTotal <= 64){
-        scale = 1/8
-        gridSize = 8;
-      }else if(partsTotal <= 81){
-        scale = 1/9
-        gridSize = 9;
-      }else{
-        scale = 1/10
-        gridSize = 10;
-      }
+      let num = Math.ceil(Math.sqrt(partsTotal));
+      scale = 1/num;
+      gridSize = num;
+
     }
     ctx.resetTransform()
     ctx.setTransform(1, 0, 0, -1, 0, canvas.height)
@@ -144,15 +119,9 @@ class TextureComposerClass{
     }
   }
   characterTextureMaker(characterData:ICharacterUserData,offset:{x:number,y:number},scale:number){
-    let canvas = this.canvas;
     let ctx = this.canvasCtx;
 
-    ctx=ctx?ctx: canvas.getContext('2d', {antialias: false}) as CanvasRenderingContext2D;
-
-    //ctx.transform(1, 0, 0, -1, 0, canvas.height)
-    if(ctx == null){
-      return {canvas,ctx};
-    }
+    scale = scale * (this.canvas.width / Loader.files.character.textures.legL[0].image.width);
 
     ctx.beginPath();
     ctx.rect(offset.x+(232*scale), offset.y+(600*scale), 482*scale, 424*scale);
@@ -173,22 +142,58 @@ class TextureComposerClass{
     ctx.fill();
 
     if(characterData.patterns.legL >= 0){
-      ctx.drawImage(Loader.files.character.textures.legL[characterData.patterns.legL].image,offset.x, offset.y,canvas.width*scale,canvas.height*scale)
+      ctx.drawImage(
+        Loader.files.character.textures.legL[characterData.patterns.legL].image,
+        offset.x,
+        offset.y,
+        Loader.files.character.textures.legL[characterData.patterns.legL].image.width*scale,
+        Loader.files.character.textures.legL[characterData.patterns.legL].image.height*scale
+      )
     }
     if(characterData.patterns.legR >= 0){
-      ctx.drawImage(Loader.files.character.textures.legR[characterData.patterns.legR].image,offset.x, offset.y,canvas.width*scale,canvas.height*scale)
+      ctx.drawImage(
+        Loader.files.character.textures.legR[characterData.patterns.legR].image,
+        offset.x,
+        offset.y,
+        Loader.files.character.textures.legR[characterData.patterns.legR].image.width*scale,
+        Loader.files.character.textures.legR[characterData.patterns.legR].image.height*scale
+      )
     }
     if(characterData.patterns.armR >= 0){
-      ctx.drawImage(Loader.files.character.textures.armR[characterData.patterns.armR].image,offset.x, offset.y,canvas.width*scale,canvas.height*scale)
+      ctx.drawImage(
+        Loader.files.character.textures.armR[characterData.patterns.armR].image,
+        offset.x,
+        offset.y,
+        Loader.files.character.textures.armR[characterData.patterns.armR].image.width*scale,
+        Loader.files.character.textures.armR[characterData.patterns.armR].image.height*scale
+      )
     }
     if(characterData.patterns.armL >= 0){
-      ctx.drawImage(Loader.files.character.textures.armL[characterData.patterns.armL].image,offset.x, offset.y,canvas.width*scale,canvas.height*scale)
+      ctx.drawImage(
+        Loader.files.character.textures.armL[characterData.patterns.armL].image,
+        offset.x,
+        offset.y,
+        Loader.files.character.textures.armL[characterData.patterns.armL].image.width*scale,
+        Loader.files.character.textures.armL[characterData.patterns.armL].image.height*scale
+      )
     }
     if(characterData.patterns.shirt >= 0){
-      ctx.drawImage(Loader.files.character.textures.shirt[characterData.patterns.shirt].image,offset.x, offset.y,canvas.width*scale,canvas.height*scale)
+      ctx.drawImage(
+        Loader.files.character.textures.shirt[characterData.patterns.shirt].image,
+        offset.x,
+        offset.y,
+        Loader.files.character.textures.shirt[characterData.patterns.shirt].image.width*scale,
+        Loader.files.character.textures.shirt[characterData.patterns.shirt].image.height*scale
+      )
     }
     if(characterData.patterns.pants >= 0){
-      ctx.drawImage(Loader.files.character.textures.pants[characterData.patterns.pants].image,offset.x, offset.y,canvas.width*scale,canvas.height*scale)
+      ctx.drawImage(
+        Loader.files.character.textures.pants[characterData.patterns.pants].image,
+        offset.x,
+        offset.y,
+        Loader.files.character.textures.pants[characterData.patterns.pants].image.width*scale,
+        Loader.files.character.textures.pants[characterData.patterns.pants].image.height*scale
+      )
     }
 
 
@@ -209,6 +214,20 @@ class TextureComposerClass{
         }
       }
     }
+  }
+
+  updateTextureSize(size:number){
+
+    this.canvas =  <HTMLCanvasElement> document.createElement('canvas');
+    this.canvas.width = size;
+    this.canvas.height = size;
+    this.canvas.style.width = size+'px';
+    this.canvas.style.height = size+'px';
+    this.canvasCtx  = this.canvas.getContext('2d', {antialias: false}) as CanvasRenderingContext2D;
+
+    this.mainTexture.image = this.canvas;
+
+    this.mainTexture.needsUpdate = true;
   }
 }
 export const TextureComposer = new TextureComposerClass()
