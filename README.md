@@ -17,11 +17,13 @@ What I learned:
 - Loaders
   - GLTFLoader
   - TextureLoader
+- Animation Control
 - Manipulation of textures
 - Manipulation of meshes > geometries > attributes and values
 - Plugins
   - Stats Module
   - GUI
+  - GSAP
   - Post Processing
     - Custom GammaCorrectionEffect
     - HueSaturationEffect

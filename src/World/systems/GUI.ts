@@ -29,13 +29,13 @@ import {
   ScanlineEffect,
   VignetteEffect, VignetteTechnique,
 } from 'postprocessing';
+import { Loader } from './Loader';
 
 class MenuManager{
 
   private folders:{
     main:GUI,
     scene:GUI,
-    textureSize:GUIController,
     charsMain:GUI,
     chars:GUI[],
     materials:{
@@ -47,6 +47,9 @@ class MenuManager{
     renderer:{
       toneMapping:string
       postProcessing:{
+        antialias:{
+          type:string
+        }
         gammaCorrection:{
           blendFunction:string,
           gamma:number
@@ -83,6 +86,7 @@ class MenuManager{
     }
     characters:{
       moving: boolean,
+      outline:boolean,
       total:number
       list:{
         colors:ICharacterUserDataColorsThreeJs,
@@ -97,6 +101,9 @@ class MenuManager{
       emissiveIntensity:number,
       fog:boolean
       selected:string,
+      toon:{
+        gradientMap:string
+      }
 
   }
 
@@ -109,9 +116,31 @@ class MenuManager{
         visible:boolean
         color:{r:number,g:number,b:number}
       }
+      hemisphereLight:{
+        visible:boolean,
+        color:{r:number,g:number,b:number}
+        groundColor :{r:number,g:number,b:number}
+      },
+      pointLight:{
+        visible:boolean,
+        color:{r:number,g:number,b:number}
+      },
+
+      spotLight:{
+        visible:boolean,
+        color:{r:number,g:number,b:number}
+      },
     }
-    street:boolean
-    texture_size:number,
+    street:boolean,
+    streetOutline:boolean,
+    texture:{
+      viewer:boolean,
+      size:number
+    },
+    instanceMesh:{
+      total:number
+      outline:boolean
+    }
 
 
   } =
@@ -120,21 +149,24 @@ class MenuManager{
     renderer:{
       toneMapping:"NoToneMapping",
       postProcessing: {
+        antialias:{
+          type:'none'
+        },
         gammaCorrection: {
           blendFunction: 'NORMAL',
-          gamma: 0.5
+          gamma: 0.75
         },
         hueSaturation: {
           blendFunction: 'NORMAL',
-          saturation: 0,
+          saturation: 0.15,
           hue: 0
         },
         bloom: {
           blendFunction: 'SCREEN',
-          intensity: 1.6,
+          intensity: 0.71,
           kernelSize: 'MEDIUM',
-          luminanceThreshold: 0.6,
-          luminanceSmoothing: 1,
+          luminanceThreshold: 0.54,
+          luminanceSmoothing: 0.62,
           mipmapBlur: true,
         },
         vignette: {
@@ -156,18 +188,35 @@ class MenuManager{
     },
     characters:{
       moving:false,
-      total:0,
+      total:1,
+      outline:false,
       list:[]
     },
     lights:{
       ambientLight:{
         visible:true,
-        color: { r:255,g:185,b:158}
+        color:{r:255,g:255,b:255}
       },
       directionalLight:{
         visible:true,
         color:{r:255,g:255,b:255}
-      }
+      },
+
+      hemisphereLight:{
+        visible:false,
+        color:{r:255,g:255,b:255},
+        groundColor :{r:255,g:255,b:255}
+      },
+
+      pointLight:{
+        visible:false,
+        color:{r:255,g:255,b:255}
+      },
+
+      spotLight:{
+        visible:false,
+        color:{r:255,g:255,b:255}
+      },
     },
     material:{
 
@@ -177,10 +226,21 @@ class MenuManager{
       selected:"standard",
       emissive:{r:0,g:0,b:0},
       emissiveIntensity:1,
-      fog:true, // faltando
+      fog:true, // faltando,
+      toon:{
+        gradientMap:'none'
+      }
     },
     street:false,
-    texture_size:1024,
+    streetOutline:false,
+    texture:{
+      viewer:false,
+      size:1024
+    },
+    instanceMesh:{
+      total:0,
+      outline:false
+    }
   }
 
   constructor() {
@@ -189,13 +249,20 @@ class MenuManager{
 
   init() {
     let main = new GUI();
-    let scene = main.addFolder('Scene');
+    let scene = main.addFolder('Renderer / Scene');
     scene.open();
 
-    let textureSize = scene.add(this.generalData, "texture_size",  [256,512,1024,2048,4096]).onFinishChange((k)=>{
+    let textureFolder = scene.addFolder("Texture");
+    textureFolder.add(this.generalData.texture, "viewer").onFinishChange((k)=>{
+      World.updateTextureViewer(k);
+    })
+    textureFolder.add(this.generalData.texture, "size",  [256,512,1024,2048,4096]).onFinishChange((k)=>{
       TextureComposer.updateTextureSize(k);
     })
-    scene.add(this.generalData.renderer, "toneMapping",[
+    textureFolder.open();
+
+    let toneMapping = scene.addFolder("Tone Mapping");
+    toneMapping.add(this.generalData.renderer, "toneMapping",[
       "NoToneMapping",
       "LinearToneMapping",
       "ReinhardToneMapping",
@@ -212,38 +279,66 @@ class MenuManager{
       }
       World.renderer.toneMapping = num
     })
-    scene.add(World.renderer, "toneMappingExposure",0,5,0.0125)
-
-    scene.add(this.generalData, "street").onFinishChange(this.onStreetChange);
-
+    toneMapping.add(World.renderer, "toneMappingExposure",0,5,0.0125)
+    toneMapping.open();
 
 
-    let ambientLight = scene.addFolder("Ambient Light");
+
+    let Lights = scene.addFolder("Lights");
+
+    let ambientLight = Lights.addFolder("Ambient Light");
     ambientLight.add(this.generalData.lights.ambientLight,"visible").onFinishChange(this.onAmbientLightVisibilityChange)
     ambientLight.addColor(this.generalData.lights.ambientLight,"color").onChange(this.onAmbientLightColorChange)
-    ambientLight.add(World.elements.lights.ambient,"intensity",0,40,0.001)
+    ambientLight.add(World.elements.lights.ambient,"intensity",0,5,0.001)
+    ambientLight.open();
 
-    let directionalLight = scene.addFolder("Directional Light");
+    let directionalLight = Lights.addFolder("Directional Light");
     directionalLight.add(this.generalData.lights.directionalLight,"visible").onFinishChange(this.onDirectionalLightVisibilityChange)
     directionalLight.addColor(this.generalData.lights.directionalLight,"color").onChange(this.onDirectionalLightColorChange)
-    directionalLight.add(World.elements.lights.directional,"intensity",0,40,0.001)
-    directionalLight.add(World.elements.lights.directional.position,"x",-40,40,0.1)
-    directionalLight.add(World.elements.lights.directional.position,"y",-40,40,0.1)
-    directionalLight.add(World.elements.lights.directional.position,"z",-40,40,0.1)
+    directionalLight.add(World.elements.lights.directional,"intensity",0,5,0.001)
+    let directionalLightPos = directionalLight.addFolder("Position");
+    directionalLightPos.add(World.elements.lights.directional.position,"x",-10,10,0.01)
+    directionalLightPos.add(World.elements.lights.directional.position,"y",-10,10,0.01)
+    directionalLightPos.add(World.elements.lights.directional.position,"z",-10,10,0.01)
+    let directionalLightTarget = directionalLight.addFolder("Target Position");
+    directionalLightTarget.add(World.elements.lights.directional.target.position,"x",-10,10,0.01)
+    directionalLightTarget.add(World.elements.lights.directional.target.position,"y",-10,10,0.01)
+    directionalLightTarget.add(World.elements.lights.directional.target.position,"z",-10,10,0.01)
+    directionalLight.open();
 
     let materialFolder = scene.addFolder("Material");
-    materialFolder.add(this.generalData.material, "selected",["lambert","standard"]).onFinishChange((k)=>this.onMaterialTypeChange(k));
+    materialFolder.add(this.generalData.material, "selected",["lambert","standard",'toon','physical','phong']).onFinishChange((k)=>this.onMaterialTypeChange(k));
     materialFolder.add(this.generalData.material, "wireframe").onFinishChange(this.onMaterialWireframeChange);
     materialFolder.addColor(this.generalData.material, "color").onChange(this.onMaterialColorChange);
     materialFolder.addColor(this.generalData.material, "emissive").onChange(this.onMaterialEmissiveColorChange);
     materialFolder.add(this.generalData.material, "emissiveIntensity",0,1,0.001).onChange(this.onMaterialEmissiveIntensity);
 
-    let standardFolder = materialFolder.addFolder("extra");
+    let standardFolder = materialFolder.addFolder("Standard Config");
     standardFolder.add(World.materials.types.standard,"metalness",0,1,0.001);
     standardFolder.add(World.materials.types.standard,"roughness",0,1,0.001);
 
 
+    let toonFolder = materialFolder.addFolder("Toon Config");
+    toonFolder.add(this.generalData.material.toon,"gradientMap",['none','Three Tone',"Four Tone","Five Tone"]).onFinishChange((k)=>this.onMaterialToonChange());
+
+
+
+
+    let physicalFolder = materialFolder.addFolder("Physical Config");
+    physicalFolder.add(World.materials.types.physical,"metalness",0,1,0.001);
+    physicalFolder.add(World.materials.types.physical,"roughness",0,1,0.001);
+    physicalFolder.add(World.materials.types.physical,"reflectivity",0,1,0.01);
+    physicalFolder.add(World.materials.types.physical,"clearcoat",0,1,0.01);
+    physicalFolder.add(World.materials.types.physical,"clearcoatRoughness",0,1,0.01);
+
+
+
     let postProcessingFolder = scene.addFolder('Post Processing');
+
+    let antialiasFolder = postProcessingFolder.addFolder('Anti Aliasing')
+    antialiasFolder.add(this.generalData.renderer.postProcessing.antialias, 'type',['none','SMAA','FXAA']).onFinishChange(()=>this.onAntialiasChange())
+    antialiasFolder.open()
+
 
     let gammaCorrectionFolder = postProcessingFolder.addFolder('Gamma Correction')
     gammaCorrectionFolder.add(RenderComposer.effects.gammaCorrection, 'activated').onFinishChange(()=>this.onPostProcessingActivationChange())
@@ -262,7 +357,7 @@ class MenuManager{
     bloomFolder.add(RenderComposer.effects.bloom, 'activated').onFinishChange(()=>this.onPostProcessingActivationChange())
     bloomFolder.add(this.generalData.renderer.postProcessing.bloom, "blendFunction",this.getBlendFunctionValues()).onChange((k)=>this.onPostProcessingSettingsChange());
     bloomFolder.add(this.generalData.renderer.postProcessing.bloom, "kernelSize",["VERY_SMALL", "SMALL", "MEDIUM", "LARGE", "VERY_LARGE", "HUGE"]).onChange((k)=>this.onPostProcessingSettingsChange());
-    bloomFolder.add(this.generalData.renderer.postProcessing.bloom, "intensity",0,5,0.01).onChange((k)=>this.onPostProcessingSettingsChange());
+    bloomFolder.add(this.generalData.renderer.postProcessing.bloom, "intensity",0,3,0.01).onChange((k)=>this.onPostProcessingSettingsChange());
     bloomFolder.add(this.generalData.renderer.postProcessing.bloom, "luminanceThreshold",0,1,0.01).onChange((k)=>this.onPostProcessingSettingsChange());
     bloomFolder.add(this.generalData.renderer.postProcessing.bloom, "luminanceSmoothing",0,1,0.01).onChange((k)=>this.onPostProcessingSettingsChange());
 
@@ -287,34 +382,54 @@ class MenuManager{
     noiseFolder.add(this.generalData.renderer.postProcessing.noise, "premultiply").onChange((k)=>this.onPostProcessingSettingsChange());
 
 
+
+
+    let street = main.addFolder("Street");
+    street.add(this.generalData, "street").onFinishChange(this.onStreetChange);
+    street.add(this.generalData, "streetOutline").onFinishChange(this.onStreetOutlineChange);
+    street.open();
+
+    let flowers = main.addFolder("Flowers");
+    flowers.add(this.generalData.instanceMesh, "total",0,1000,1).onChange(()=>World.elements.flowers.refreshTotal());
+    flowers.add(this.generalData.instanceMesh, "outline").onFinishChange(()=>World.elements.flowers.refreshOutline());
+    flowers.open();
+
     let charsMainFolder = main.addFolder('Characters')
     charsMainFolder.open();
 
 
     charsMainFolder.add(this.generalData.characters, "total",this.makeArrayFromRange(0,224)).onFinishChange(()=>this.onCharactersTotalChange())
     charsMainFolder.add(this.generalData.characters, "moving").onFinishChange(()=>this.onCharactersMovingChange())
+    charsMainFolder.add(this.generalData.characters, "outline").onFinishChange(()=>World.refreshCharactersShape())
 
 
     this.folders = {
       main:main,
       scene:scene,
-      textureSize:textureSize,
       charsMain:charsMainFolder,
       chars:[],
       materials:{
         standard:standardFolder
+
       }
     }
     this.folders.scene.open();
+
+    Menu.onCharactersTotalChange()
   }
 
-  removeTextureSize(){
-    if(this.folders.textureSize){
-
-      this.folders.textureSize.remove();
-      // @ts-ignore
-      this.folders.textureSize=null;
+  onAntialiasChange(){
+    RenderComposer.effects.SMAA.activated = false;
+    RenderComposer.shaders.FXAA.activated = false;
+    switch (this.generalData.renderer.postProcessing.antialias.type){
+      case'SMAA':
+        RenderComposer.effects.SMAA.activated = true;
+        break;
+      case'FXAA':
+        RenderComposer.effects.SMAA.activated = true;
+        break;
     }
+    RenderComposer.refreshComposer()
   }
   private onOrbitControlsChange(k:boolean){
 
@@ -322,6 +437,9 @@ class MenuManager{
   private onStreetChange(k:boolean){
     World.updateStreetVisibility(k);
     TextureComposer.refreshMainTexture();
+  }
+  private onStreetOutlineChange(k:boolean){
+    World.updateStreetOutline(k);
   }
   private onAmbientLightVisibilityChange(k){
     World.updateAmbientLightVisibility(k)
@@ -355,21 +473,29 @@ class MenuManager{
   private onMaterialColorChange(color:{r:number,g:number,b:number}){
     let code_ = Utils.rgbToHex(color.r,color.g,color.b)
     for(let material in World.materials.types){
-      World.materials.types[material].color = new Color(code_);
+      if(material != "outline"){
+        World.materials.types[material].color = new Color(code_);
+      }
     }
   }
   private onMaterialEmissiveColorChange(color:{r:number,g:number,b:number}){
     let code_ = Utils.rgbToHex(color.r,color.g,color.b)
     for(let material in World.materials.types){
-      World.materials.types[material].emissive = new Color(code_);
+
+      if(material != "outline") {
+        World.materials.types[material].emissive = new Color(code_);
+      }
     }
   }
   private onMaterialEmissiveIntensity(k){
     for(let material in World.materials.types){
-      World.materials.types[material].emissiveIntensity = k;
+
+      if(material != "outline") {
+        World.materials.types[material].emissiveIntensity = k;
+      }
     }
   }
-  private onCharactersTotalChange(){
+  onCharactersTotalChange(){
     if(World.elements.characters.length > this.generalData.characters.total){
       World.removeCharactersAfter(this.generalData.characters.total)
       let removeGUI = this.folders.chars.slice(this.generalData.characters.total,this.folders.chars.length)
@@ -591,6 +717,16 @@ class MenuManager{
     RenderComposer.effects.noise.effect.blendMode.blendFunction = BlendFunction[this.generalData.renderer.postProcessing.noise.blendFunction];
     RenderComposer.effects.noise.effect.premultiply = this.generalData.renderer.postProcessing.noise.premultiply;
 
+  }
+  private onMaterialToonChange(){
+    switch (this.generalData.material.toon.gradientMap.toLowerCase()){
+      case 'none': World.materials.types.toon.gradientMap = null;break;
+      case 'three tone':World.materials.types.toon.gradientMap = Loader.files.maps.threeTone; break;
+      case "four tone": World.materials.types.toon.gradientMap = Loader.files.maps.fourTone;break;
+      case "five tone": World.materials.types.toon.gradientMap = Loader.files.maps.fiveTone;break;
+
+    }
+    World.setMaterial(this.generalData.material.selected);
   }
 
   private getBlendFunctionValues(){

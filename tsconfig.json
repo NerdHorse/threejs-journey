@@ -11,6 +11,7 @@
     "module": "commonjs",
     "strict": true,
     "suppressImplicitAnyIndexErrors": true,
-    "strictPropertyInitialization": false
+    "strictPropertyInitialization": false,
+    "strictNullChecks":false,
   }
 }

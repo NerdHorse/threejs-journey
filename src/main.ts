@@ -15,13 +15,6 @@ async function main() {
 
   Menu.init();
 
-  // addEventListener('click', () => {
-  //   if (world.isRunning() === false) {
-  //     world.start();
-  //   } else {
-  //     world.stop();
-  //   }
-  // });
 }
 
 main().catch((err) => {

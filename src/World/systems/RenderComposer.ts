@@ -5,9 +5,10 @@ import {
   EffectComposer,
   EffectPass,
   HueSaturationEffect, KernelSize, NoiseEffect,
-  RenderPass, ScanlineEffect, VignetteEffect,
+  RenderPass, ScanlineEffect, SMAAEffect, VignetteEffect,ShaderPass
 } from 'postprocessing';
 import { HalfFloatType, PerspectiveCamera, Scene, WebGLRenderer } from 'three';
+import {FXAAShader } from 'three/examples/jsm/shaders/FXAAShader'
 
 class RenderComposerManager{
   effects:{
@@ -39,31 +40,35 @@ class RenderComposerManager{
       effect:NoiseEffect
 
     }
+    SMAA:{
+      activated: boolean,
+      effect: SMAAEffect
+    },
 
 
   }={
     gammaCorrection:{
       activated: false,
       effect:new GammaCorrectionEffect({
-        gamma:0.5
+        gamma:0.75
       })
     },
     hueSaturation:{
       activated: false,
       effect:new HueSaturationEffect({
         blendFunction:BlendFunction.NORMAL,
-        saturation: 0,
+        saturation: 0.15,
         hue:0
       })
     },
     bloom:{
       activated: false,
       effect:new BloomEffect({
-        intensity: 1.6,
+        intensity:0.71,
         blendFunction: BlendFunction.SCREEN,
         kernelSize: KernelSize.MEDIUM,
-        luminanceThreshold: 0.6,
-        luminanceSmoothing: 1,
+        luminanceThreshold: 0.54,
+        luminanceSmoothing: 0.62,
         mipmapBlur: true,
       })
     },
@@ -86,12 +91,27 @@ class RenderComposerManager{
         blendFunction: BlendFunction.MULTIPLY
       }),
 
+    },
+    SMAA:{
+      activated: false,
+      effect: new SMAAEffect()
     }
-
+  }
+  shaders:{
+    FXAA:{
+      activated: boolean,
+      shaderPass: ShaderPass
+    }
+  } = {
+    FXAA:{
+      activated: false,
+      // @ts-ignore
+      shaderPass: new ShaderPass(FXAAShader)
+    }
   }
   composer: EffectComposer;
   renderer:WebGLRenderer;
-  currentPass:EffectPass|null;
+  currentPass:(EffectPass|ShaderPass)[]|null;
   scene:Scene;
   camera:PerspectiveCamera;
   init(renderer:WebGLRenderer,scene:Scene, camera:PerspectiveCamera){
@@ -103,32 +123,61 @@ class RenderComposerManager{
     });
     this.composer.addPass(new RenderPass(this.scene, this.camera));
 
+
+
     this.currentPass = this.createPass();
     if(this.currentPass != null){
-      this.composer.addPass(this.currentPass);
+      for(let pass of this.currentPass ){
+        this.composer.addPass(pass);
+      }
     }
   }
   refreshComposer(){
     if(this.currentPass != null){
-      this.composer.removePass(this.currentPass);
+      for(let pass of this.currentPass ){
+        this.composer.removePass(pass);
+        pass.dispose();
+      }
     }
 
     this.currentPass = this.createPass();
     if(this.currentPass != null){
-      this.composer.addPass(this.currentPass);
+      for(let pass of this.currentPass ){
+        this.composer.addPass(pass);
+      }
     }
   }
   private createPass(){
+    let preEffects:Effect[] = [];
     let effects:Effect[] = [];
     for(let k in this.effects){
       if(this.effects[k].activated){
         effects.push(this.effects[k].effect)
+        if(this.effects[k].pre){
+          preEffects.push(this.effects[k].pre)
+        }
       }
     }
-    if(effects.length == 0){
+    let shaders:ShaderPass[] = [];
+    for(let k in this.shaders){
+      if(this.shaders[k].activated){
+        shaders.push(this.shaders[k].shaderPass)
+      }
+    }
+
+    if(effects.length == 0 && preEffects.length == 0 && shaders.length == 0){
       return null;
     }
-    return new EffectPass(this.camera,...effects);
+    let pass:(EffectPass|ShaderPass)[] = [];
+    for(let pre of preEffects){
+      pass.push(new EffectPass(this.camera,pre))
+    }
+    pass.push(new EffectPass(this.camera,...effects))
+
+    for(let shader of shaders){
+      pass.push(shader)
+    }
+    return pass;
   }
   render(){
     if(this.currentPass == null){

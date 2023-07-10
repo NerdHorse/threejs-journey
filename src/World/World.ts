@@ -1,15 +1,28 @@
 import {
 
-  AmbientLight, AxesHelper, BufferAttribute, Color,
-  DirectionalLight, GridHelper, HalfFloatType,
-  MathUtils, Mesh, MeshLambertMaterial, MeshStandardMaterial, Object3D,
+  AmbientLight,
+  AxesHelper,
+  BufferAttribute,
+  Color,
+  DirectionalLight, DynamicDrawUsage,
+  GridHelper,
+  HalfFloatType, InstancedMesh,
+  MathUtils,
+  Mesh,
+  MeshBasicMaterial,
+  MeshLambertMaterial, MeshPhongMaterial,
+  MeshPhysicalMaterial,
+  MeshStandardMaterial,
+  MeshToonMaterial,
+  Object3D,
   OrthographicCamera,
   PerspectiveCamera,
-  Scene, sRGBEncoding, Texture,
+  Scene, Sprite, SpriteMaterial,
+  sRGBEncoding,
+  Texture,
   WebGL1Renderer,
   WebGLRenderer,
 } from 'three';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import { Loop } from './systems/Loop';
 import { NoToneMapping } from 'three/src/constants';
 import { ICharacterUserData } from './interfaces/ICharacterUserData';
@@ -21,6 +34,10 @@ import { Loader } from './systems/Loader';
 import { HueSaturationEffect} from 'postprocessing';
 import { GammaCorrectionEffect } from './systems/GammaCorrectionEffect';
 import { RenderComposer } from './systems/RenderComposer';
+import { ControlKeys } from './enums/ControlKeys';
+import { CharacterControls } from './systems/CharacterControls';
+import { FlowersManager } from './components/FlowersManager';
+import { CustomOrbitControls } from './systems/CustomOrbitControls';
 
 
 class WorldClass {
@@ -28,13 +45,20 @@ class WorldClass {
   private camera: PerspectiveCamera | OrthographicCamera;
   scene: Scene;
   renderer: WebGLRenderer | WebGL1Renderer;
-  private controls: OrbitControls;
+  private controls: {
+    normal:CustomOrbitControls,
+    character: CharacterControls
+
+  };
   loop: Loop;
   private isRunning_: boolean=false;
   private container: HTMLCanvasElement|null=null;
 
   public elements:{
-    city:Object3D,
+    city:{
+      noOutline:Object3D
+      withOutline:Object3D
+    },
     helpers:{
       grid:GridHelper,
       axes:AxesHelper
@@ -43,17 +67,37 @@ class WorldClass {
 
     lights:{
       ambient:AmbientLight,
-      directional:DirectionalLight
+      directional:DirectionalLight,
+      directionalTarget:Object3D
     }
+    flowers:FlowersManager,
+    textureViewer:Sprite
   }
   materials:{
     types:{
       lambert:MeshLambertMaterial,
       standard:MeshStandardMaterial,
+      outline:MeshBasicMaterial,
+      toon:MeshToonMaterial,
+      physical:MeshPhysicalMaterial,
+      phong:MeshPhongMaterial
     }
   }
-  constructor() {
+  keysPressed:{
+    [k:string]:boolean
+  }={
 
+  }
+  constructor() {
+    document.addEventListener('keydown', (event) => {
+      if (event.shiftKey) {
+        this.keysPressed[ControlKeys.SHIFT] = true
+      }
+      this.keysPressed[event.key.toLowerCase()] = true
+    }, false);
+    document.addEventListener('keyup', (event) => {
+      this.keysPressed[event.key.toLowerCase()] = false
+    }, false);
   }
 
   init(container: HTMLCanvasElement) {
@@ -100,37 +144,38 @@ class WorldClass {
       // camera.position.y += radiansPerSecond * delta;
     };
 
+    this.controls ={
+      normal:  new CustomOrbitControls(this.camera, this.renderer.domElement),
+      character: new CharacterControls(this.camera, this.renderer.domElement)
+    }
 
-    this.controls = new OrbitControls(this.camera, this.renderer.domElement);
-    this.controls.minDistance = 1;
-    this.controls.maxDistance = 95;
-    this.controls.enablePan = true;
-    this.controls.enableDamping = true;
+    this.controls.normal.enabled = false;
+    this.controls.normal.enableDamping = true;
+    this.controls.normal.minDistance = 5;
+    this.controls.normal.maxDistance = 15;
+    this.controls.normal.enablePan = false;
+    this.controls.normal.maxPolarAngle = Math.PI / 2 - 0.05;
 
 
 
 
-    const ambientLight = new AmbientLight( Utils.rgbToHex(255,185,158), 0.449);
+    const ambientLight = new AmbientLight( 'white', 0.449);
 
-    const directionalLight = new DirectionalLight('white', 1.796);
-    directionalLight.position.set(1.2, 4.6, 1.8);
+    const directionalTarget = new Object3D();
+    this.scene.add(directionalTarget);
+    const directionalLight = new DirectionalLight('white', 1);
+    directionalLight.position.set(0, 2, 1.8);
+    directionalLight.target = directionalTarget;
+
+
 
     const helperGrid = new GridHelper(20);
     const helperAxes = new AxesHelper(20);
     helperAxes.position.set(-10, 0, -10);
 
-    this.elements={
-      city:Loader.files.city.gltf.scene,
-      helpers:{
-        grid:helperGrid,
-        axes:helperAxes
-      },
-      characters:[],
-      lights:{
-        ambient:ambientLight,
-        directional:directionalLight
-      }
-    }
+
+
+
 
 
 
@@ -143,17 +188,80 @@ class WorldClass {
     materialStandard.roughness=0.617;
     materialStandard.metalness = 0.393;
 
+    let materialToon=new MeshToonMaterial({    })
+    materialToon.map = TextureComposer.mainTexture;
+    let materialPhysical=new MeshPhysicalMaterial({    })
+    materialPhysical.map = TextureComposer.mainTexture;
+    let materialPhong=new MeshPhongMaterial({    })
+    materialPhong.map = TextureComposer.mainTexture;
 
+    let materialOutline=new MeshBasicMaterial({
+      color:'black'
+    })
 
     this.materials={
       types:{
         lambert:materialLambert,
         standard:materialStandard,
+        outline:materialOutline,
+        toon:materialToon,
+        physical:materialPhysical,
+        phong:materialPhong
       }
     };
 
 
-    (this.elements.city.children[0] as Mesh).material = this.materials.types[Menu.generalData.material.selected];
+
+
+    const flowerInstanceMesh = new InstancedMesh((Loader.files.flower.noOutline.gltf.scene.children[0] as Mesh).geometry.clone(),this.materials.types[Menu.generalData.material.selected],1000)
+
+    console.log(Loader.files.flower.noOutline.gltf.scene.children[0]);
+    const flowerBaseInstanceMesh = new InstancedMesh((Loader.files.flower.withOutline.gltf.scene.children[0].children[0] as Mesh).geometry.clone(),this.materials.types[Menu.generalData.material.selected],1000)
+    const flowerOutlineInstanceMesh = new InstancedMesh((Loader.files.flower.withOutline.gltf.scene.children[0].children[1] as Mesh).geometry.clone(),this.materials.types.outline,1000)
+
+    const flowerManager = new FlowersManager(flowerInstanceMesh,flowerBaseInstanceMesh,flowerOutlineInstanceMesh);
+    flowerManager.refreshTotal();
+
+
+    const spriteMaterial = new SpriteMaterial( { map: TextureComposer.mainTexture,sizeAttenuation :false } );
+
+    const textureViewerSprite = new Sprite( spriteMaterial );
+    textureViewerSprite.scale.set(0.25,0.25,0.25);
+    textureViewerSprite.position.set(0,2,0);
+
+
+
+
+    this.elements={
+      city:{
+        noOutline:Loader.files.city.noOutline.gltf.scene,
+        withOutline:Loader.files.city.withOutline.gltf.scene.children[0]
+      },
+      helpers:{
+        grid:helperGrid,
+        axes:helperAxes
+      },
+      characters:[],
+      lights:{
+        ambient:ambientLight,
+        directional:directionalLight,
+        directionalTarget:directionalTarget
+      },
+      flowers:flowerManager,
+      textureViewer:textureViewerSprite
+    };
+
+
+
+
+
+
+
+    (this.elements.city.noOutline.children[0] as Mesh).material = this.materials.types[Menu.generalData.material.selected];
+
+
+    (this.elements.city.withOutline.children[0] as Mesh).material = this.materials.types[Menu.generalData.material.selected];
+    (this.elements.city.withOutline.children[1] as Mesh).material = this.materials.types.outline;
 
 
     this.scene.add( ambientLight );
@@ -165,13 +273,6 @@ class WorldClass {
 
 
 
-    const hueSaturationEffect = new HueSaturationEffect({
-      saturation: 0
-    })
-    const gammaCorrectionEffect = new GammaCorrectionEffect({
-      gamma:0.5
-    })
-
 
 
     RenderComposer.init(this.renderer,this.scene,this.camera)
@@ -181,12 +282,20 @@ class WorldClass {
 
 
 
+
     this.loop = new Loop({
       camera:this.camera,
       scene:this.scene,
       renderer:this.renderer
     });
-    this.loop.addControls(this.controls);
+
+    this.loop.addControls(this.controls.normal);
+    this.loop.addMixer(this.controls.character);
+
+    World.loop.addMixer(flowerManager);
+
+
+
 
   }
 
@@ -213,11 +322,18 @@ class WorldClass {
 
   updateStreetVisibility(visible:boolean){
     if(visible){
-      this.scene.add(this.elements.city)
+      this.scene.add(Menu.generalData.streetOutline?this.elements.city.withOutline:this.elements.city.noOutline)
       this.scene.remove(this.elements.helpers.grid,this.elements.helpers.axes)
     }else{
-      this.scene.remove(this.elements.city)
+      this.scene.remove(Menu.generalData.streetOutline?this.elements.city.withOutline:this.elements.city.noOutline)
       this.scene.add(this.elements.helpers.grid,this.elements.helpers.axes)
+    }
+  }
+  updateStreetOutline(outline:boolean){
+    if(Menu.generalData.street){
+
+      this.scene.add(outline?this.elements.city.withOutline:this.elements.city.noOutline)
+      this.scene.remove(outline?this.elements.city.noOutline:this.elements.city.withOutline)
     }
   }
   updateAmbientLightVisibility(visible){
@@ -236,9 +352,16 @@ class WorldClass {
   }
   setMaterial(name:string){
     for(let char of this.elements.characters){
-      (char.obj?.children[0].children[0] as Mesh).material = this.materials.types[name]
+      for(let i=0;i<  char.obj.children.length;i++){
+        let mesh = char.obj.children[i] as Mesh;
+        if(mesh.isMesh && !mesh.userData.outlineMesh){
+          mesh.material = this.materials.types[name];
+        }
+      }
     }
-    (this.elements.city.children[0] as Mesh).material = this.materials.types[name]
+    (this.elements.city.noOutline.children[0] as Mesh).material = this.materials.types[name];
+    (this.elements.city.withOutline.children[0] as Mesh).material = this.materials.types[name];
+    this.elements.flowers.refreshMaterial()
 
   }
 
@@ -263,7 +386,8 @@ class WorldClass {
   removeCharactersAfter(num:number){
     let remove = this.elements.characters.slice(num,this.elements.characters.length)
     remove.forEach((char)=>{
-      this.scene.remove(char.obj as Object3D)
+      this.scene.remove(char.obj as Object3D);
+      char.dispose();
     })
     this.elements.characters = this.elements.characters.slice(0,num);
   }
@@ -273,6 +397,12 @@ class WorldClass {
       char.updateTweenStatus()
     })
   }
-
+  updateTextureViewer(k:boolean){
+    if(k){
+      this.scene.add(this.elements.textureViewer)
+    }else{
+      this.scene.remove(this.elements.textureViewer)
+    }
+  }
 }
 export const World = new WorldClass();

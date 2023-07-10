@@ -14,32 +14,16 @@ class TextureComposerClass{
   constructor() {
 
 
-    this.canvas =  <HTMLCanvasElement> document.createElement('canvas');
-    this.canvas.width = 1024;
-    this.canvas.height = 1024;
-    this.canvas.style.width = '1024px';
-    this.canvas.style.height = '1024px';
-
-    this.canvasCtx  = this.canvas.getContext('2d', {antialias: false}) as CanvasRenderingContext2D;
-
-
-
-    this.mainTexture = new Texture(this.canvas);
-    this.mainTexture.needsUpdate = true;
+    this.refreshCanvas();
 
   }
   refreshMainTexture(){
-    Menu.removeTextureSize()
 
     let canvas = this.canvas;
     let ctx = this.canvasCtx;
-    canvas.width = Menu.generalData.texture_size;
-    canvas.height =  Menu.generalData.texture_size;
-    canvas.style.width =  Menu.generalData.texture_size+'px';
-    canvas.style.height =  Menu.generalData.texture_size+'px';
 
     let scale = 1;
-    let partsTotal = World.elements.characters.length + ( Menu.generalData.street?1:0);
+    let partsTotal = World.elements.characters.length + ( Menu.generalData.street || Menu.generalData.instanceMesh.total > 0?1:0);
     let gridSize = 1;
     if(partsTotal > 1){
       let num = Math.ceil(Math.sqrt(partsTotal));
@@ -55,14 +39,42 @@ class TextureComposerClass{
 
     let offSetIndex = 0;
 
-    if(Menu.generalData.street){
+    if(Menu.generalData.street || Menu.generalData.instanceMesh.total > 0){
+
       ctx.drawImage(Loader.files.city.texture.image, 0, 0, scale*canvas.width, scale*canvas.height);
-      let geometry = (World.elements.city.children[0] as Mesh).geometry;
-      let attribute = Loader.files.city.uvOri.clone();
+      let geometry = (World.elements.city.noOutline.children[0] as Mesh).geometry;
+      let attribute = Loader.files.city.noOutline.uvOri.clone();
       for(let i = 0;i<attribute.count;i++){
         attribute.setXY(i,attribute.getX(i) * scale,attribute.getY(i) * scale )
       }
       geometry.setAttribute('uv', attribute);
+
+
+
+      geometry = (World.elements.city.withOutline.children[0] as Mesh).geometry;
+      attribute = Loader.files.city.withOutline.uvOri.clone();
+      for(let i = 0;i<attribute.count;i++){
+        attribute.setXY(i,attribute.getX(i) * scale,attribute.getY(i) * scale )
+      }
+      geometry.setAttribute('uv', attribute);
+
+
+      geometry = World.elements.flowers.flowerSimple.geometry;
+      attribute = Loader.files.flower.noOutline.uvOri.clone();
+      for(let i = 0;i<attribute.count;i++){
+        attribute.setXY(i,attribute.getX(i) * scale,attribute.getY(i) * scale )
+      }
+      geometry.setAttribute('uv', attribute);
+
+
+      geometry = World.elements.flowers.flowerOutline1.geometry;
+      attribute = Loader.files.flower.withOutline.uvOri.clone();
+      for(let i = 0;i<attribute.count;i++){
+        attribute.setXY(i,attribute.getX(i) * scale,attribute.getY(i) * scale )
+      }
+      geometry.setAttribute('uv', attribute);
+
+
 
       offSetIndex++;
     }
@@ -76,10 +88,12 @@ class TextureComposerClass{
 
 
         this.characterTextureMaker(char.userData,{x:offset.x* scale*canvas.width, y:offset.y*scale*canvas.height},scale);
-        let geometry = (char.obj.children[0].children[0] as Mesh).geometry;
+        let geometry = (char.obj.children[0] as Mesh).geometry;
         let attribute = char.uvOri.clone();
         for(let i = 0;i<attribute.count;i++){
-          attribute.setXY(i,(attribute.getX(i) * scale) + (offset.x * scale),(attribute.getY(i) * scale) + (offset.y * scale) )
+          if(attribute.getX(i) != 0.0000000001 || attribute.getY(i) !=0.0000000001){
+            attribute.setXY(i,(attribute.getX(i) * scale) + (offset.x * scale),(attribute.getY(i) * scale) + (offset.y * scale) )
+          }
         }
         geometry.setAttribute('uv', attribute);
 
@@ -122,6 +136,16 @@ class TextureComposerClass{
     let ctx = this.canvasCtx;
 
     scale = scale * (this.canvas.width / Loader.files.character.textures.legL[0].image.width);
+
+    ctx.beginPath();
+    ctx.rect(
+      offset.x,
+      offset.y,
+      Loader.files.character.textures.legL[0].image.width*scale,
+      Loader.files.character.textures.legL[0].image.height*scale
+    );
+    ctx.fillStyle = "#000000";
+    ctx.fill();
 
     ctx.beginPath();
     ctx.rect(offset.x+(232*scale), offset.y+(600*scale), 482*scale, 424*scale);
@@ -216,18 +240,36 @@ class TextureComposerClass{
     }
   }
 
-  updateTextureSize(size:number){
+  private refreshCanvas(){
 
     this.canvas =  <HTMLCanvasElement> document.createElement('canvas');
-    this.canvas.width = size;
-    this.canvas.height = size;
-    this.canvas.style.width = size+'px';
-    this.canvas.style.height = size+'px';
-    this.canvasCtx  = this.canvas.getContext('2d', {antialias: false}) as CanvasRenderingContext2D;
+    this.canvas .width = Menu.generalData.texture.size;
+    this.canvas .height =  Menu.generalData.texture.size;
+    this.canvas .style.width =  Menu.generalData.texture.size+'px';
+    this.canvas .style.height =  Menu.generalData.texture.size+'px';
 
-    this.mainTexture.image = this.canvas;
-
+    this.canvasCtx  = this.canvas.getContext('2d', {antialias: false,alpha:false}) as CanvasRenderingContext2D;
+    if(this.mainTexture != null){
+      this.mainTexture.dispose();
+      this.mainTexture= null;
+    }
+    this.mainTexture = new Texture(this.canvas);
     this.mainTexture.needsUpdate = true;
+  }
+  updateTextureSize(size:number){
+
+    this.refreshCanvas();
+
+
+    for(let k in World.materials.types){
+      if(k != 'outline'){
+        World.materials.types[k].map = this.mainTexture;
+        World.materials.types[k].needsUpdate = true;
+      }
+    }
+    World.elements.textureViewer.material.map = this.mainTexture;
+    World.elements.textureViewer.material.needsUpdate = true;
+    this.refreshMainTexture();
   }
 }
 export const TextureComposer = new TextureComposerClass()

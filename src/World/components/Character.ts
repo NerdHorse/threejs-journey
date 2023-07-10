@@ -1,9 +1,9 @@
 import {
   AnimationAction,
   AnimationClip,
-  AnimationMixer,
-  BufferAttribute, BufferGeometry,  Group, Material,
-  Mesh,
+  AnimationMixer, BackSide,
+  BufferAttribute, BufferGeometry, Group, Material, MathUtils,
+  Mesh, MeshBasicMaterial,
   MeshLambertMaterial,
   Object3D, Skeleton, SkinnedMesh,
   Texture,
@@ -34,6 +34,7 @@ export class Character{
   actionSelected:string;
 
   tween:gsap.core.Tween|null;
+  outline:boolean|null = null;
   constructor(private id:number,userData_?:ICharacterUserData) {
 
     if(userData_){
@@ -130,63 +131,103 @@ export class Character{
      const idleClip:AnimationClip =Loader.files.character.animations.idle.animations[0].optimize()
 
      let remake = this.obj == null;
-     if(!remake){
-       for(let config in indexes){
-         if(this.userData.indexes[config] != indexes[config]){
-           remake = true;
-           this.userData.indexes[config] =indexes[config];
-         }
+     for(let config in indexes){
+       if(this.userData.indexes[config] != indexes[config]){
+         remake = true;
+         this.userData.indexes[config] =indexes[config];
        }
      }
+     remake =  remake || this.outline != Menu.generalData.characters.outline ;
 
      if(remake){
-
+       this.outline = Menu.generalData.characters.outline;
        if(this.obj != null){
-         World.scene.remove(this.obj)
+         World.scene.remove(this.obj);
+         this.obj.children.forEach(child => {
+           if((child as Mesh).isMesh){
+             (child as Mesh).geometry.dispose();
+             //((child as Mesh).material as Material).dispose();
+           }
+         });
+
+         for(let k in  this.actions){
+           this.actions[k].stop();
+         }
+         this.actions= null;
+         World.loop.removeMixer(this.mixer);
+         this.mixer= null;
        }
-       let mesh = this.meshMaker(this.userData,World.materials.types[Menu.generalData.material.selected]);
 
-       let uvOri = ((mesh.children[0] as Mesh).geometry.attributes["uv"] as BufferAttribute).clone();
+       let {mesh,outlineMesh} = this.meshMaker();
+
+       let uvOri = (mesh.geometry.attributes["uv"] as BufferAttribute).clone();
        const container = new Object3D();
-       const objMesh  = mesh;
 
-       const mixer = new AnimationMixer(objMesh);
-       const actions={
-         running:mixer.clipAction(runningClip.clone()),
-         walking:mixer.clipAction(walkingClip.clone()),
-         idle:mixer.clipAction(idleClip.clone())
+       this.mixer =  new AnimationMixer(mesh);
+       this.actions ={
+         running:this.mixer.clipAction(runningClip.clone()),
+         walking:this.mixer.clipAction(walkingClip.clone()),
+         idle:this.mixer.clipAction(idleClip.clone())
        };
 
        let offset = {
          x: this.id%7,
          y: Math.floor(this.id / 7)
        }
-       offset.x = Math.floor((offset.x+1)/2) * (offset.x % 2 > 0 ? -1 : 1);
+       offset.x = Math.floor((offset.x+1)/2) * (offset.x % 2 > 0 ? -1 : 1)
+       container.attach(mesh)
+       if(outlineMesh){
+         outlineMesh.userData.outlineMesh = true;
+         container.attach(outlineMesh);
+       }
+       container.rotation.set(0,MathUtils.degToRad(180),0)
+       container.scale.set(-0.01, 0.01, -0.01);
 
-       container.attach(objMesh)
-       container.scale.set(0.01, 0.01, 0.01);
 
-       for(let k in actions){
-         actions[k].play();
-         this.animationSetWeight(actions[k],0)
+
+       for(let k in this.actions){
+         this.actions[k].play();
+         this.animationSetWeight(this.actions[k],0)
        }
 
-       let actionNames = ["idle","running","walking"];
-       let actionSelected = actionNames[Math.floor(Math.random()*actionNames.length)]
-       this.animationSetWeight(actions[actionSelected],1)
+       let actionSelected =  "idle";
+       this.animationSetWeight(this.actions[actionSelected],1)
 
 
-       World.loop.addMixer(mixer);
 
        World.scene.add(container);
        this.obj = container;
-       this.mixer = mixer;
        this.uvOri = uvOri;
-       this.actions = actions;
        this.actionSelected = actionSelected;
        this.setDefaultPosition();
        this.updateTweenStatus();
+       World.loop.addMixer(this.mixer);
      }
+   }
+   dispose(){
+    if(this.obj){
+      this.obj.children.forEach(child => {
+        if((child as Mesh).isMesh){
+          (child as Mesh).geometry.dispose();
+          ((child as Mesh).material as Material).dispose();
+        }
+      });
+      for(let k in  this.actions){
+        this.actions[k].stop();
+      }
+      this.actions= null;
+      World.loop.removeMixer(this.mixer);
+      this.mixer= null;
+    }
+    this.uvOri = null;
+    this.actions = null;
+    if(this.tween){
+      this.tween.kill();
+      this.tween = null;
+    }
+    this.obj = null;
+    this.userData = null;
+
    }
   private animationSetWeight( action:AnimationAction, weight:number ){
     action.enabled = true;
@@ -209,7 +250,7 @@ export class Character{
 
         this_.mixer.removeEventListener( 'loop', onLoopFinished );
 
-        this_.animationExecuteCrossFade( start, start, duration );
+        this_.animationExecuteCrossFade( start, end, duration );
 
       }
 
@@ -237,7 +278,7 @@ export class Character{
     this.actionSelected = end;
 
   }
-  private prepareCrossFade( end:string, defaultDuration :number) {
+  public prepareCrossFade( end:string) {
     if(this.obj == null){
       return
     }
@@ -259,39 +300,85 @@ export class Character{
 
   }
 
-  private meshMaker(characterData:ICharacterUserData,material:Material){
+  private meshMaker(){
+
+    let characterData = this.userData;
 
     let blockList = this.meshBlocker(characterData);
 
 
-    let bufferGeometry:BufferGeometry |null = null;
-    let scene = SkeletonClone(Loader.files.character.gltf.scene);
+    let bufferGeometry1:BufferGeometry |null = null;
+    let bufferGeometry2:BufferGeometry |null = null;
+    let scene = SkeletonClone(Loader.files.character.gltf[this.outline?"withOutline":"noOutline"].scene);
     let skeleton:Skeleton | null= null;
-    let group = new Group();
+
     for(let i = 0;i<scene.children.length;i++){
 
-      let obj = scene.children[i].clone(true);
+      let obj = scene.children[i];
       let type = obj.name.split("_")[0]
 
-      if(this.meshChecker(obj.name,characterData,blockList) && (obj as Mesh).isMesh){
-        if(bufferGeometry){
-          bufferGeometry = BufferGeometryUtils.mergeBufferGeometries([bufferGeometry,(obj as Mesh).geometry.clone()],true)
+      if(this.meshChecker(obj.name,characterData,blockList)){
+        if((obj as Mesh).isMesh){
+
+          if(bufferGeometry1){
+            bufferGeometry1 = BufferGeometryUtils.mergeBufferGeometries([bufferGeometry1,(obj as Mesh).geometry])
+          }else{
+            bufferGeometry1 = (obj as Mesh).geometry
+          }
+          if(skeleton == null){
+            skeleton = (obj as SkinnedMesh).skeleton;
+          }
         }else{
-          bufferGeometry = (obj as Mesh).geometry.clone()
+          for(let j = 0;j<obj.children.length;j++){
+            if(obj.children[j].name == obj.name+"_1"){
+
+              if(bufferGeometry1){
+                bufferGeometry1 = BufferGeometryUtils.mergeBufferGeometries([bufferGeometry1,(obj.children[j] as Mesh).geometry])
+              }else{
+                bufferGeometry1 = (obj.children[j] as Mesh).geometry
+              }
+              if(skeleton == null){
+                skeleton = (obj.children[j] as SkinnedMesh).skeleton;
+              }
+            }else{
+
+              if(bufferGeometry2){
+                bufferGeometry2 = BufferGeometryUtils.mergeBufferGeometries([bufferGeometry2,(obj.children[j] as Mesh).geometry])
+              }else{
+                bufferGeometry2 = (obj.children[j] as Mesh).geometry
+              }
+            }
+
+
+
+          }
         }
-        skeleton = (obj as SkinnedMesh).skeleton.clone();
+
+
 
       }
     }
-    const objMesh1  = new SkinnedMesh(bufferGeometry as BufferGeometry,material);
-    objMesh1.add(skeleton?.bones[0].parent as Object3D)
-    objMesh1.bind(skeleton as Skeleton)
-    group.attach(objMesh1)
-    group.position.set(0, 0, 0);
-    group.scale.set(0.01, 0.01, 0.01);
 
 
-    return group
+
+
+
+    const mesh  = new SkinnedMesh(bufferGeometry1 as BufferGeometry,World.materials.types[Menu.generalData.material.selected]);
+    mesh.add(skeleton?.bones[0].parent as Object3D)
+    mesh.bind(skeleton as Skeleton)
+
+
+
+
+    let outline : SkinnedMesh|null = null;
+
+    if(bufferGeometry2){
+      outline  = new SkinnedMesh(bufferGeometry2 as BufferGeometry,World.materials.types.outline);
+      outline.bind(skeleton as Skeleton)
+    }
+
+
+    return {mesh,outlineMesh: outline}
 
   }
   private meshBlocker(characterData:ICharacterUserData):ICharacterBuilderPartBlockData{
