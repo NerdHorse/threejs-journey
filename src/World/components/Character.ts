@@ -6,7 +6,7 @@ import {
   Mesh, MeshBasicMaterial,
   MeshLambertMaterial,
   Object3D, Skeleton, SkinnedMesh,
-  Texture,
+  Texture, Vector3,
 } from 'three';
 import { clone as SkeletonClone } from 'three/examples/jsm/utils/SkeletonUtils';
 import * as BufferGeometryUtils from "three/examples/jsm/utils/BufferGeometryUtils.js";
@@ -35,12 +35,39 @@ export class Character{
 
   tween:gsap.core.Tween|null;
   outline:boolean|null = null;
+  private lastPos:Vector3=null;
+  private lastRotation:Vector3=null;
+
+  private loopAnimationFinished: {
+    func:(event:any)=>void,
+    nextAnimation:string,
+    syncTimeout:any,
+    syncTimeoutAnimation:string
+  }
+  private ANIMATIONCROSSFADE = 0.25;
   constructor(private id:number,userData_?:ICharacterUserData) {
 
     if(userData_){
       this.userData = userData_;
     }else{
       this.userData = this.createNewUserData();
+    }
+    let this_=this;
+    this.loopAnimationFinished= {
+      func:(event)=> {
+        if (this_.obj == null) {
+          return
+        }
+
+        if (this_.loopAnimationFinished.nextAnimation) {
+          this_.animationExecuteCrossFade(this_.actionSelected, this_.loopAnimationFinished.nextAnimation, this_.ANIMATIONCROSSFADE);
+          this_.loopAnimationFinished.nextAnimation = null;
+        }
+
+      },
+      nextAnimation:null,
+      syncTimeout:null,
+      syncTimeoutAnimation:null
     }
   }
 
@@ -142,6 +169,10 @@ export class Character{
      if(remake){
        this.outline = Menu.generalData.characters.outline;
        if(this.obj != null){
+         if(this.id == 0){
+           this.lastPos = new Vector3(this.obj.position.x,this.obj.position.y,this.obj.position.z)
+           this.lastRotation  = new Vector3(this.obj.rotation.x,this.obj.rotation.y,this.obj.rotation.z)
+         }
          World.scene.remove(this.obj);
          this.obj.children.forEach(child => {
            if((child as Mesh).isMesh){
@@ -154,6 +185,8 @@ export class Character{
            this.actions[k].stop();
          }
          this.actions= null;
+
+         this.mixer.removeEventListener( 'loop', this.loopAnimationFinished.func );
          World.loop.removeMixer(this.mixer);
          this.mixer= null;
        }
@@ -202,6 +235,8 @@ export class Character{
        this.setDefaultPosition();
        this.updateTweenStatus();
        World.loop.addMixer(this.mixer);
+
+       this.mixer.addEventListener( 'loop', this.loopAnimationFinished.func );
      }
    }
    dispose(){
@@ -217,6 +252,7 @@ export class Character{
       }
       this.actions= null;
       World.loop.removeMixer(this.mixer);
+      this.mixer.removeEventListener( 'loop', this.loopAnimationFinished.func );
       this.mixer= null;
     }
     this.uvOri = null;
@@ -235,31 +271,21 @@ export class Character{
     action.setEffectiveWeight( weight );
 
   }
-  private animationSynchronizeCrossFade( start:string, end:string, duration:number ) {
 
-    this.mixer.addEventListener( 'loop', onLoopFinished );
+  private animationSynchronizeCrossFade(  end:string) {
 
-    let startAction = this.actions[start];
-    let this_=this;
-    function onLoopFinished( event ) {
 
-      if(this_.obj == null){
-        return
-      }
-      if ( event.action === startAction ) {
+    this.loopAnimationFinished.nextAnimation = end;
 
-        this_.mixer.removeEventListener( 'loop', onLoopFinished );
 
-        this_.animationExecuteCrossFade( start, end, duration );
-
-      }
-
-    }
 
   }
   private animationExecuteCrossFade(start:string, end:string, duration:number  ) {
 
-    if(this.obj == null){
+    if(
+      this.obj == null
+      || this.actionSelected == end
+    ){
       return
     }
 
@@ -279,22 +305,43 @@ export class Character{
 
   }
   public prepareCrossFade( end:string) {
-    if(this.obj == null){
+    if(
+      this.obj == null
+      || (
+        this.loopAnimationFinished.syncTimeout
+        && this.loopAnimationFinished.syncTimeoutAnimation == end
+      )
+      || this.loopAnimationFinished.nextAnimation == end
+    ){
       return
     }
 
 
+
     let startAction = this.actions[this.actionSelected]
 
-    const duration = 0.5;
+    const duration = 0.250;
 
+    this.loopAnimationFinished.nextAnimation = null;
+
+    if(this.loopAnimationFinished.syncTimeout != null){
+      clearTimeout(this.loopAnimationFinished.syncTimeout);
+      this.loopAnimationFinished.syncTimeout = null;
+      this.loopAnimationFinished.syncTimeoutAnimation = null;
+    }
 
     if ( startAction ===this.actions.idle ) {
 
       this.animationExecuteCrossFade( this.actionSelected, end, duration );
 
-    } else if(this.obj) {
-      this.animationSynchronizeCrossFade( this.actionSelected, end, duration );
+    } else if(this.obj && this.actionSelected != end) {
+      let this_=this;
+      this.loopAnimationFinished.syncTimeoutAnimation = end;
+      this.loopAnimationFinished.syncTimeout = setTimeout(()=>{
+        this_.animationSynchronizeCrossFade( end );
+        this_.loopAnimationFinished.syncTimeout = null;
+        this_.loopAnimationFinished.syncTimeoutAnimation = null;
+        },100)
 
     }
 
@@ -507,12 +554,18 @@ export class Character{
   }
 
   private setDefaultPosition(){
-    let offset = {
-      x: this.id%7,
-      y: Math.floor(this.id / 7)
+    if(this.lastPos == null){
+      let offset = {
+        x: this.id%7,
+        y: Math.floor(this.id / 7)
+      }
+      offset.x = Math.floor((offset.x+1)/2) * (offset.x % 2 > 0 ? -1 : 1);
+      this.obj.position.set(offset.x*1.5, 0, (offset.y*-1.5)+5);
+    }else{
+      this.obj.position.set(this.lastPos.x, this.lastPos.y, this.lastPos.z);
+      this.obj.rotation.set(this.lastRotation.x, this.lastRotation.y, this.lastRotation.z);
     }
-    offset.x = Math.floor((offset.x+1)/2) * (offset.x % 2 > 0 ? -1 : 1);
-    this.obj.position.set(offset.x*1.5, 0, (offset.y*-1.5)+5);
+
   }
 
   updateTweenStatus(){
@@ -527,7 +580,7 @@ export class Character{
     }
   }
   private setTween(){
-    if(this.tween != null){
+    if(this.tween != null || this.id == 0){
       return
     }
     this.tween = gsap.to(this.obj.position,{

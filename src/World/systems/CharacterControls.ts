@@ -30,7 +30,8 @@ export class CharacterControls {
   private fadeDuration: number = 0.2
   private runVelocity = 5
   private walkVelocity = 2;
-  private enabled:boolean =true;
+  private lastDirection = 0;
+  enabled:boolean =true;
 
   constructor(camera: PerspectiveCamera | OrthographicCamera,domElement?: HTMLElement) {
 
@@ -69,10 +70,7 @@ export class CharacterControls {
       play = 'idle'
     }
 
-    if (character.actionSelected != play) {
-      character.prepareCrossFade(play);
-    }
-
+    character.prepareCrossFade(play);
 
     if (character.actionSelected == 'running' || character.actionSelected == 'walking') {
       // calculate towards camera direction
@@ -118,13 +116,15 @@ export class CharacterControls {
   }
 
   private directionOffset(keysPressed: any) {
-    var directionOffset = 0 // w
+    var directionOffset = null;
 
     if (keysPressed[ControlKeys.W]) {
       if (keysPressed[ControlKeys.A]) {
         directionOffset = Math.PI / 4 // w+a
       } else if (keysPressed[ControlKeys.D]) {
         directionOffset = - Math.PI / 4 // w+d
+      }else{
+        directionOffset = 0 // w
       }
     } else if (keysPressed[ControlKeys.S]) {
       if (keysPressed[ControlKeys.A]) {
@@ -140,6 +140,10 @@ export class CharacterControls {
       directionOffset = - Math.PI / 2 // d
     }
 
+    if(directionOffset == null){
+      directionOffset = this.lastDirection;
+    }
+    this.lastDirection = directionOffset;
     return directionOffset
   }
 }

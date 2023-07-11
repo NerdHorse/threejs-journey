@@ -45,9 +45,9 @@ class WorldClass {
   private camera: PerspectiveCamera | OrthographicCamera;
   scene: Scene;
   renderer: WebGLRenderer | WebGL1Renderer;
-  private controls: {
-    normal:CustomOrbitControls,
-    character: CharacterControls
+   controls: {
+    orbit:CustomOrbitControls,
+    character_3th: CharacterControls
 
   };
   loop: Loop;
@@ -145,16 +145,18 @@ class WorldClass {
     };
 
     this.controls ={
-      normal:  new CustomOrbitControls(this.camera, this.renderer.domElement),
-      character: new CharacterControls(this.camera, this.renderer.domElement)
+      orbit:  new CustomOrbitControls(this.camera, this.renderer.domElement),
+      character_3th: new CharacterControls(this.camera, this.renderer.domElement)
     }
 
-    this.controls.normal.enabled = false;
-    this.controls.normal.enableDamping = true;
-    this.controls.normal.minDistance = 5;
-    this.controls.normal.maxDistance = 15;
-    this.controls.normal.enablePan = false;
-    this.controls.normal.maxPolarAngle = Math.PI / 2 - 0.05;
+    this.controls.orbit.enabled = false;
+    this.controls.orbit.enableDamping = true;
+    this.controls.orbit.minDistance = 5;
+    this.controls.orbit.maxDistance = 15;
+    this.controls.orbit.enablePan = true;
+    this.controls.orbit.enableZoom = true;
+    this.controls.orbit.enableRotate = true;
+    this.controls.orbit.maxPolarAngle = Math.PI / 2 - 0.05;
 
 
 
@@ -289,8 +291,8 @@ class WorldClass {
       renderer:this.renderer
     });
 
-    this.loop.addControls(this.controls.normal);
-    this.loop.addMixer(this.controls.character);
+    this.loop.addControls(this.controls.orbit);
+    this.loop.addMixer(this.controls.character_3th);
 
     World.loop.addMixer(flowerManager);
 

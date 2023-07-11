@@ -44,6 +44,7 @@ class MenuManager{
 
   };
   generalData:{
+    controls:string,
     renderer:{
       toneMapping:string
       postProcessing:{
@@ -145,7 +146,7 @@ class MenuManager{
 
   } =
   {
-
+    controls:"character_3th",
     renderer:{
       toneMapping:"NoToneMapping",
       postProcessing: {
@@ -184,7 +185,8 @@ class MenuManager{
           blendFunction: 'MULTIPLY',
           premultiply: false
         }
-      }
+      },
+
     },
     characters:{
       moving:false,
@@ -252,11 +254,17 @@ class MenuManager{
     let scene = main.addFolder('Renderer / Scene');
     scene.open();
 
+    scene.add(this.generalData, "controls",  ["orbit","character_3th"]).onFinishChange((k)=>{
+      for(let control in World.controls){
+        World.controls[control].enabled = control == k;
+      }
+    })
+
     let textureFolder = scene.addFolder("Texture");
     textureFolder.add(this.generalData.texture, "viewer").onFinishChange((k)=>{
       World.updateTextureViewer(k);
     })
-    textureFolder.add(this.generalData.texture, "size",  [256,512,1024,2048,4096]).onFinishChange((k)=>{
+    textureFolder.add(this.generalData.texture, "size",  [256,512,1024,2048,4096,8192,16384]).onFinishChange((k)=>{
       TextureComposer.updateTextureSize(k);
     })
     textureFolder.open();
@@ -398,7 +406,7 @@ class MenuManager{
     charsMainFolder.open();
 
 
-    charsMainFolder.add(this.generalData.characters, "total",this.makeArrayFromRange(0,224)).onFinishChange(()=>this.onCharactersTotalChange())
+    charsMainFolder.add(this.generalData.characters, "total",this.makeArrayFromRange(1,224)).onFinishChange(()=>this.onCharactersTotalChange())
     charsMainFolder.add(this.generalData.characters, "moving").onFinishChange(()=>this.onCharactersMovingChange())
     charsMainFolder.add(this.generalData.characters, "outline").onFinishChange(()=>World.refreshCharactersShape())
 

@@ -31,7 +31,6 @@ export const CharacterBuilderData: {
         belly: true,
         chestBot: true,
         hair: true,
-        hip: true,
         shoulderL: true,
         shoulderR: true,
         underwearTop: true,
@@ -66,7 +65,8 @@ export const CharacterBuilderData: {
         backBot: true,
         chestBot: true,
         shoulderL: true,
-        shoulderR: true
+        shoulderR: true,
+        underwearTop: true,
       },
       colors:4,
     },
