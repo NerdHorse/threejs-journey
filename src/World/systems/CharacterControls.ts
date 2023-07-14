@@ -5,12 +5,13 @@ import {
   Group,
   Object3D, OrthographicCamera,
   PerspectiveCamera,
-  Quaternion,
+  Quaternion, Scene,
   Vector3,
 } from 'three';
 import { ControlKeys } from '../enums/ControlKeys';
 import { World } from '../World';
 import { CustomOrbitControls } from './CustomOrbitControls';
+
 
 
 export class CharacterControls {
@@ -31,9 +32,14 @@ export class CharacterControls {
   private runVelocity = 5
   private walkVelocity = 2;
   private lastDirection = 0;
-  enabled:boolean =true;
+  enabled_:boolean =true;
 
-  constructor(camera: PerspectiveCamera | OrthographicCamera,domElement?: HTMLElement) {
+
+  constructor(camera: PerspectiveCamera | OrthographicCamera,scene:Scene,domElement?: HTMLElement) {
+
+    //this.joyStick = new CharacterControlsJoyStick(camera, scene)
+
+
 
     this.orbitControl = new CustomOrbitControls(camera,domElement);
     this.orbitControl.enabled = true;
@@ -50,6 +56,13 @@ export class CharacterControls {
     return World.keysPressed[ControlKeys.SHIFT]
   }
 
+  set enabled(k){
+    this.orbitControl.enabled  = k;
+    this.enabled_ = k;
+  }
+  get enabled (){
+    return this.enabled_;
+  }
   public update(delta:number) {
     if(!this.enabled){
       return;
@@ -59,6 +72,9 @@ export class CharacterControls {
       return
     }
     this.orbitControl.update();
+
+
+
     const directionPressed = this.DIRECTIONS.some(key => World.keysPressed[key] == true)
 
     var play = '';

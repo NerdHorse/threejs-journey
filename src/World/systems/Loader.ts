@@ -115,7 +115,15 @@ class LoaderClass{
       this.loadTextureProm('public/assets/textures/mapFourTone.jpg'),
       this.loadTextureProm('public/assets/textures/mapFiveTone.jpg'),
     ]);
-    console.log(cityOutlineGLTF)
+    console.log(characterGLTF);
+
+
+    (cityOutlineGLTF.scene.children[0].children[1] as Mesh).geometry.deleteAttribute('uv');
+    (cityOutlineGLTF.scene.children[0].children[1] as Mesh).geometry.deleteAttribute('uv2');
+    (cityOutlineGLTF.scene.children[0].children[1] as Mesh).geometry.deleteAttribute('texcoord_2');
+    (cityOutlineGLTF.scene.children[0].children[1] as Mesh).geometry.deleteAttribute('normal');
+
+
     this.files={
       maps:{
         threeTone:mapThreeTone,

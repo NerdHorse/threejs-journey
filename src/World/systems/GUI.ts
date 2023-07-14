@@ -109,26 +109,21 @@ class MenuManager{
   }
 
     lights:{
-      ambientLight:{
-        visible:boolean,
+      ambient:{
         color:{r:number,g:number,b:number}
       }
-      directionalLight:{
-        visible:boolean
+      directional:{
         color:{r:number,g:number,b:number}
       }
-      hemisphereLight:{
-        visible:boolean,
-        color:{r:number,g:number,b:number}
+      hemisphere:{
+        skyColor:{r:number,g:number,b:number}
         groundColor :{r:number,g:number,b:number}
       },
-      pointLight:{
-        visible:boolean,
+      point:{
         color:{r:number,g:number,b:number}
       },
 
-      spotLight:{
-        visible:boolean,
+      spot:{
         color:{r:number,g:number,b:number}
       },
     }
@@ -151,20 +146,20 @@ class MenuManager{
       toneMapping:"NoToneMapping",
       postProcessing: {
         antialias:{
-          type:'none'
+          type:'FXAA'
         },
         gammaCorrection: {
           blendFunction: 'NORMAL',
-          gamma: 0.75
+          gamma: 0.5
         },
         hueSaturation: {
           blendFunction: 'NORMAL',
-          saturation: 0.15,
+          saturation: 0.2,
           hue: 0
         },
         bloom: {
           blendFunction: 'SCREEN',
-          intensity: 0.71,
+          intensity: 0.2,
           kernelSize: 'MEDIUM',
           luminanceThreshold: 0.54,
           luminanceSmoothing: 0.62,
@@ -191,32 +186,27 @@ class MenuManager{
     characters:{
       moving:false,
       total:1,
-      outline:false,
+      outline:true,
       list:[]
     },
     lights:{
-      ambientLight:{
-        visible:true,
+      ambient:{
         color:{r:255,g:255,b:255}
       },
-      directionalLight:{
-        visible:true,
-        color:{r:255,g:255,b:255}
-      },
-
-      hemisphereLight:{
-        visible:false,
-        color:{r:255,g:255,b:255},
-        groundColor :{r:255,g:255,b:255}
-      },
-
-      pointLight:{
-        visible:false,
+      directional:{
         color:{r:255,g:255,b:255}
       },
 
-      spotLight:{
-        visible:false,
+      hemisphere:{
+        skyColor:{r:255, g:200, b:127},
+        groundColor :{r:255, g:200, b:127}
+      },
+
+      point:{
+        color:{r:255,g:255,b:255}
+      },
+
+      spot:{
         color:{r:255,g:255,b:255}
       },
     },
@@ -233,15 +223,15 @@ class MenuManager{
         gradientMap:'none'
       }
     },
-    street:false,
-    streetOutline:false,
+    street:true,
+    streetOutline:true,
     texture:{
       viewer:false,
       size:1024
     },
     instanceMesh:{
       total:0,
-      outline:false
+      outline:true
     }
   }
 
@@ -256,7 +246,9 @@ class MenuManager{
 
     scene.add(this.generalData, "controls",  ["orbit","character_3th"]).onFinishChange((k)=>{
       for(let control in World.controls){
+        console.log(control,control == k);
         World.controls[control].enabled = control == k;
+
       }
     })
 
@@ -295,15 +287,15 @@ class MenuManager{
     let Lights = scene.addFolder("Lights");
 
     let ambientLight = Lights.addFolder("Ambient Light");
-    ambientLight.add(this.generalData.lights.ambientLight,"visible").onFinishChange(this.onAmbientLightVisibilityChange)
-    ambientLight.addColor(this.generalData.lights.ambientLight,"color").onChange(this.onAmbientLightColorChange)
+    ambientLight.add(World.elements.lights.ambient,"visible")
+    ambientLight.addColor(this.generalData.lights.ambient,"color").onChange(()=>this.onLightColorChange())
     ambientLight.add(World.elements.lights.ambient,"intensity",0,5,0.001)
     ambientLight.open();
 
     let directionalLight = Lights.addFolder("Directional Light");
-    directionalLight.add(this.generalData.lights.directionalLight,"visible").onFinishChange(this.onDirectionalLightVisibilityChange)
-    directionalLight.addColor(this.generalData.lights.directionalLight,"color").onChange(this.onDirectionalLightColorChange)
-    directionalLight.add(World.elements.lights.directional,"intensity",0,5,0.001)
+    directionalLight.add(World.elements.lights.directional,"visible").onChange(()=>this.onLightVisibilityChange())
+    directionalLight.addColor(this.generalData.lights.directional,"color").onChange(()=>this.onLightColorChange())
+    directionalLight.add(World.elements.lights.directional,"intensity",0,10,0.001)
     let directionalLightPos = directionalLight.addFolder("Position");
     directionalLightPos.add(World.elements.lights.directional.position,"x",-10,10,0.01)
     directionalLightPos.add(World.elements.lights.directional.position,"y",-10,10,0.01)
@@ -313,6 +305,17 @@ class MenuManager{
     directionalLightTarget.add(World.elements.lights.directional.target.position,"y",-10,10,0.01)
     directionalLightTarget.add(World.elements.lights.directional.target.position,"z",-10,10,0.01)
     directionalLight.open();
+
+    let hemisphereLight = Lights.addFolder("hemisphere Light");
+    hemisphereLight.add(World.elements.lights.hemisphere,"visible").onChange(()=>this.onLightVisibilityChange())
+    hemisphereLight.addColor(this.generalData.lights.hemisphere,"skyColor").onChange(()=>this.onLightColorChange())
+    hemisphereLight.addColor(this.generalData.lights.hemisphere,"groundColor").onChange(()=>this.onLightColorChange())
+    hemisphereLight.add(World.elements.lights.hemisphere,"intensity",0,10,0.001)
+    let hemisphereLighttPos = hemisphereLight.addFolder("Position");
+    hemisphereLighttPos.add(World.elements.lights.hemisphere.position,"x",-10,10,0.01)
+    hemisphereLighttPos.add(World.elements.lights.hemisphere.position,"y",-10,10,0.01)
+    hemisphereLighttPos.add(World.elements.lights.hemisphere.position,"z",-10,10,0.01)
+
 
     let materialFolder = scene.addFolder("Material");
     materialFolder.add(this.generalData.material, "selected",["lambert","standard",'toon','physical','phong']).onFinishChange((k)=>this.onMaterialTypeChange(k));
@@ -449,20 +452,30 @@ class MenuManager{
   private onStreetOutlineChange(k:boolean){
     World.updateStreetOutline(k);
   }
-  private onAmbientLightVisibilityChange(k){
-    World.updateAmbientLightVisibility(k)
-  }
-  private onAmbientLightColorChange(color:{r:number,g:number,b:number}){
+  private onLightColorChange(){
+    let color = this.generalData.lights.hemisphere.skyColor;
     let code_ = Utils.rgbToHex(color.r,color.g,color.b)
+    World.elements.lights.hemisphere.color = new Color(code_)
+
+    color = this.generalData.lights.hemisphere.groundColor;
+    code_ = Utils.rgbToHex(color.r,color.g,color.b)
+    World.elements.lights.hemisphere.groundColor = new Color(code_)
+
+    color = this.generalData.lights.directional.color;
+    code_ = Utils.rgbToHex(color.r,color.g,color.b)
+    World.elements.lights.directional.color = new Color(code_)
+
+    color = this.generalData.lights.ambient.color;
+    code_ = Utils.rgbToHex(color.r,color.g,color.b)
     World.elements.lights.ambient.color = new Color(code_)
   }
-  private onDirectionalLightVisibilityChange(k){
-    World.updateDirectionalLightVisibility(k)
+  private onLightVisibilityChange(){
+
+    World.elements.helpers.hemisphereLight.visible = World.elements.lights.hemisphere.visible;
+    World.elements.helpers.directionalLight.visible = World.elements.lights.directional.visible;
   }
-  private onDirectionalLightColorChange(color:{r:number,g:number,b:number}){
-    let code_ = Utils.rgbToHex(color.r,color.g,color.b)
-    World.elements.lights.directional.color = new Color(code_)
-  }
+
+
   private onMaterialTypeChange(name:string){
     World.setMaterial(name)
     for(let material in World.materials.types){

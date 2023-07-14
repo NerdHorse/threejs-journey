@@ -48,23 +48,23 @@ class RenderComposerManager{
 
   }={
     gammaCorrection:{
-      activated: false,
+      activated: true,
       effect:new GammaCorrectionEffect({
-        gamma:0.75
+        gamma:0.5
       })
     },
     hueSaturation:{
-      activated: false,
+      activated: true,
       effect:new HueSaturationEffect({
         blendFunction:BlendFunction.NORMAL,
-        saturation: 0.15,
+        saturation: 0.2,
         hue:0
       })
     },
     bloom:{
-      activated: false,
+      activated: true,
       effect:new BloomEffect({
-        intensity:0.71,
+        intensity:0.2,
         blendFunction: BlendFunction.SCREEN,
         kernelSize: KernelSize.MEDIUM,
         luminanceThreshold: 0.54,
@@ -93,7 +93,7 @@ class RenderComposerManager{
 
     },
     SMAA:{
-      activated: false,
+      activated: true,
       effect: new SMAAEffect()
     }
   }
