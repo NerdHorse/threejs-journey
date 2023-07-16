@@ -424,7 +424,7 @@ class MenuManager{
 
       }
     }
-    this.folders.scene.open();
+    this.folders.main.close();
 
     Menu.onCharactersTotalChange()
   }

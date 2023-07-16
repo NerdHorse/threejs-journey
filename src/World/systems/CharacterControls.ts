@@ -12,12 +12,12 @@ import { ControlKeys } from '../enums/ControlKeys';
 import { World } from '../World';
 import { CustomOrbitControls } from './CustomOrbitControls';
 
-
+const pi = Math.PI;
 
 export class CharacterControls {
 
   private DIRECTIONS  =[ControlKeys.W, ControlKeys.A, ControlKeys.S, ControlKeys.D]
-  private orbitControl: CustomOrbitControls
+  orbitControl: CustomOrbitControls
   private camera: Camera
 
 
@@ -34,10 +34,8 @@ export class CharacterControls {
   private lastDirection = 0;
   enabled_:boolean =true;
 
-
   constructor(camera: PerspectiveCamera | OrthographicCamera,scene:Scene,domElement?: HTMLElement) {
 
-    //this.joyStick = new CharacterControlsJoyStick(camera, scene)
 
 
 
@@ -48,12 +46,14 @@ export class CharacterControls {
     this.orbitControl.minDistance = 5;
     this.orbitControl.maxDistance = 15;
     this.orbitControl.enablePan = false;
-    this.orbitControl.maxPolarAngle = Math.PI / 2 - 0.05;
+    this.orbitControl.enableZoom = false;
+    this.orbitControl.maxPolarAngle = pi / 2 - 0.05;
     this.camera = camera;
+
   }
 
   private isRunning(){
-    return World.keysPressed[ControlKeys.SHIFT]
+    return World.keysPressed[ControlKeys.SHIFT] || World.ui.characterControl.running
   }
 
   set enabled(k){
@@ -75,7 +75,12 @@ export class CharacterControls {
 
 
 
-    const directionPressed = this.DIRECTIONS.some(key => World.keysPressed[key] == true)
+    let isFromJoyStick = false;
+    let directionPressed = this.DIRECTIONS.some(key => World.keysPressed[key] == true);
+    if(!directionPressed){
+      directionPressed = World.ui.characterControl.running || World.ui.characterControl.walking;
+      isFromJoyStick =true;
+    }
 
     var play = '';
     if (directionPressed && this.isRunning()) {
@@ -95,7 +100,7 @@ export class CharacterControls {
         (this.camera.position.z - character.obj.position.z))
 
       // diagonal movement angle offset
-      var directionOffset = this.directionOffset(World.keysPressed)
+      var directionOffset = isFromJoyStick ? World.ui.characterControl.directionAngle   : this.directionOffsetFromKeys(World.keysPressed);
 
       // rotate model
       this.rotateQuarternion.setFromAxisAngle(this.rotateAngle, angleYCameraDirection + directionOffset)
@@ -116,6 +121,8 @@ export class CharacterControls {
       character.obj.position.x += moveX
       character.obj.position.z += moveZ
       this.updateCameraTarget(character.obj,moveX, moveZ)
+    }else{
+      this.updateCameraTarget(character.obj,0,0)
     }
   }
 
@@ -131,29 +138,29 @@ export class CharacterControls {
     this.orbitControl.target = this.cameraTarget
   }
 
-  private directionOffset(keysPressed: any) {
+  private directionOffsetFromKeys(keysPressed: any) {
     var directionOffset = null;
 
     if (keysPressed[ControlKeys.W]) {
       if (keysPressed[ControlKeys.A]) {
-        directionOffset = Math.PI / 4 // w+a
+        directionOffset = pi / 4 // w+a
       } else if (keysPressed[ControlKeys.D]) {
-        directionOffset = - Math.PI / 4 // w+d
+        directionOffset = - pi / 4 // w+d
       }else{
         directionOffset = 0 // w
       }
     } else if (keysPressed[ControlKeys.S]) {
       if (keysPressed[ControlKeys.A]) {
-        directionOffset = Math.PI / 4 + Math.PI / 2 // s+a
+        directionOffset = pi / 4 + pi / 2 // s+a
       } else if (keysPressed[ControlKeys.D]) {
-        directionOffset = -Math.PI / 4 - Math.PI / 2 // s+d
+        directionOffset = -pi / 4 - pi / 2 // s+d
       } else {
-        directionOffset = Math.PI // s
+        directionOffset = pi // s
       }
     } else if (keysPressed[ControlKeys.A]) {
-      directionOffset = Math.PI / 2 // a
+      directionOffset = pi / 2 // a
     } else if (keysPressed[ControlKeys.D]) {
-      directionOffset = - Math.PI / 2 // d
+      directionOffset = - pi / 2 // d
     }
 
     if(directionOffset == null){
@@ -162,4 +169,5 @@ export class CharacterControls {
     this.lastDirection = directionOffset;
     return directionOffset
   }
+
 }

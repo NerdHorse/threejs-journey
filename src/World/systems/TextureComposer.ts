@@ -41,7 +41,7 @@ class TextureComposerClass{
 
     if(Menu.generalData.street || Menu.generalData.instanceMesh.total > 0){
 
-      ctx.drawImage(Loader.files.city.texture.image, 0, 0, scale*canvas.width, scale*canvas.height);
+      ctx.drawImage(Loader.files.city.texture, 0, 0, scale*canvas.width, scale*canvas.height);
       let geometry = (World.elements.city.noOutline.children[0] as Mesh).geometry;
       let attribute = Loader.files.city.noOutline.uvOri.clone();
       for(let i = 0;i<attribute.count;i++){
@@ -135,14 +135,14 @@ class TextureComposerClass{
   characterTextureMaker(characterData:ICharacterUserData,offset:{x:number,y:number},scale:number){
     let ctx = this.canvasCtx;
 
-    scale = scale * (this.canvas.width / Loader.files.character.textures.legL[0].image.width);
+    scale = scale * (this.canvas.width / Loader.files.character.textures.legL[0].width);
 
     ctx.beginPath();
     ctx.rect(
       offset.x,
       offset.y,
-      Loader.files.character.textures.legL[0].image.width*scale,
-      Loader.files.character.textures.legL[0].image.height*scale
+      Loader.files.character.textures.legL[0].width*scale,
+      Loader.files.character.textures.legL[0].height*scale
     );
     ctx.fillStyle = "#000000";
     ctx.fill();
@@ -167,56 +167,56 @@ class TextureComposerClass{
 
     if(characterData.patterns.legL >= 0){
       ctx.drawImage(
-        Loader.files.character.textures.legL[characterData.patterns.legL].image,
+        Loader.files.character.textures.legL[characterData.patterns.legL],
         offset.x,
         offset.y,
-        Loader.files.character.textures.legL[characterData.patterns.legL].image.width*scale,
-        Loader.files.character.textures.legL[characterData.patterns.legL].image.height*scale
+        Loader.files.character.textures.legL[characterData.patterns.legL].width*scale,
+        Loader.files.character.textures.legL[characterData.patterns.legL].height*scale
       )
     }
     if(characterData.patterns.legR >= 0){
       ctx.drawImage(
-        Loader.files.character.textures.legR[characterData.patterns.legR].image,
+        Loader.files.character.textures.legR[characterData.patterns.legR],
         offset.x,
         offset.y,
-        Loader.files.character.textures.legR[characterData.patterns.legR].image.width*scale,
-        Loader.files.character.textures.legR[characterData.patterns.legR].image.height*scale
+        Loader.files.character.textures.legR[characterData.patterns.legR].width*scale,
+        Loader.files.character.textures.legR[characterData.patterns.legR].height*scale
       )
     }
     if(characterData.patterns.armR >= 0){
       ctx.drawImage(
-        Loader.files.character.textures.armR[characterData.patterns.armR].image,
+        Loader.files.character.textures.armR[characterData.patterns.armR],
         offset.x,
         offset.y,
-        Loader.files.character.textures.armR[characterData.patterns.armR].image.width*scale,
-        Loader.files.character.textures.armR[characterData.patterns.armR].image.height*scale
+        Loader.files.character.textures.armR[characterData.patterns.armR].width*scale,
+        Loader.files.character.textures.armR[characterData.patterns.armR].height*scale
       )
     }
     if(characterData.patterns.armL >= 0){
       ctx.drawImage(
-        Loader.files.character.textures.armL[characterData.patterns.armL].image,
+        Loader.files.character.textures.armL[characterData.patterns.armL],
         offset.x,
         offset.y,
-        Loader.files.character.textures.armL[characterData.patterns.armL].image.width*scale,
-        Loader.files.character.textures.armL[characterData.patterns.armL].image.height*scale
+        Loader.files.character.textures.armL[characterData.patterns.armL].width*scale,
+        Loader.files.character.textures.armL[characterData.patterns.armL].height*scale
       )
     }
     if(characterData.patterns.shirt >= 0){
       ctx.drawImage(
-        Loader.files.character.textures.shirt[characterData.patterns.shirt].image,
+        Loader.files.character.textures.shirt[characterData.patterns.shirt],
         offset.x,
         offset.y,
-        Loader.files.character.textures.shirt[characterData.patterns.shirt].image.width*scale,
-        Loader.files.character.textures.shirt[characterData.patterns.shirt].image.height*scale
+        Loader.files.character.textures.shirt[characterData.patterns.shirt].width*scale,
+        Loader.files.character.textures.shirt[characterData.patterns.shirt].height*scale
       )
     }
     if(characterData.patterns.pants >= 0){
       ctx.drawImage(
-        Loader.files.character.textures.pants[characterData.patterns.pants].image,
+        Loader.files.character.textures.pants[characterData.patterns.pants],
         offset.x,
         offset.y,
-        Loader.files.character.textures.pants[characterData.patterns.pants].image.width*scale,
-        Loader.files.character.textures.pants[characterData.patterns.pants].image.height*scale
+        Loader.files.character.textures.pants[characterData.patterns.pants].width*scale,
+        Loader.files.character.textures.pants[characterData.patterns.pants].height*scale
       )
     }
 

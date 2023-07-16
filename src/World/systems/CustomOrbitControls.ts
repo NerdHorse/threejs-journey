@@ -46,8 +46,14 @@ const dollyStart = new Vector2();
 const dollyEnd = new Vector2();
 const dollyDelta = new Vector2();
 
-const pointers = [];
-const pointerPositions = {};
+const pointers_:{
+  event:any,
+  active:boolean,
+  position?:Vector2
+}[] = [];
+
+
+
 /**
  * Orbit controls allow the camera to orbit around a target.
  * @param object - The camera to be controlled. The camera must not
@@ -284,13 +290,13 @@ export class CustomOrbitControls extends EventDispatcher {
   zoom0: number;
 
   private triggerInterface:{
-    onContextMenu:( event:any )=>void
-    onPointerDown:( event:any )=>void
-    onPointerCancel:( event:any )=>void
-    onMouseWheel:( event:any )=>void
-    onPointerMove:( event:any )=>void
-    onPointerUp:( event:any )=>void
-    onKeyDown:( event:any )=>void
+    onContextMenu:( event:MouseEvent )=>void,
+    onPointerDown:( event:PointerEvent )=>void,
+    onPointerCancel:( event:PointerEvent )=>void,
+    onMouseWheel:( event:WheelEvent )=>void,
+    onPointerMove:( event:PointerEvent )=>void,
+    onPointerUp:( event:PointerEvent )=>void,
+    onKeyDown:( event: KeyboardEvent)=>void
   }
 
   customBehavior:boolean = false;
@@ -392,6 +398,41 @@ export class CustomOrbitControls extends EventDispatcher {
   }
   _domElementKeyEvents:any;
 
+  private triggerBefore:{
+    myID:string
+    onContextMenu:(( event:MouseEvent )=>boolean),
+    onPointerDown:(( event:PointerEvent )=>boolean),
+    onPointerCancel:(( event:PointerEvent )=>boolean),
+    onMouseWheel:(( event:WheelEvent )=>boolean),
+    onPointerMove:(( event:PointerEvent )=>boolean),
+    onPointerUp:(( event:PointerEvent )=>boolean),
+    onKeyDown:(( event: KeyboardEvent)=>boolean)
+    ctx:any
+  }[]=[];
+  addTriggerBefore(
+    listeners:{
+      myID:string
+      onContextMenu:( event:MouseEvent )=>boolean,
+      onPointerDown:( event:PointerEvent )=>boolean,
+      onPointerCancel:( event:PointerEvent )=>boolean,
+      onMouseWheel:( event:WheelEvent )=>boolean,
+      onPointerMove:( event:PointerEvent )=>boolean,
+      onPointerUp:( event:PointerEvent )=>boolean,
+      onKeyDown:( event: KeyboardEvent)=>boolean,
+      ctx:any
+    }
+  ){
+    this.triggerBefore.push(listeners)
+  };
+  removeTriggerBefore(id:string){
+    let newArray = [];
+    for(let i = 0;i<this.triggerBefore.length;i++){
+      if(this.triggerBefore[i].myID != id){
+        newArray.push(this.triggerBefore[i])
+      }
+    }
+    this.triggerBefore = newArray;
+  }
   private getAutoRotationAngle() {
 
     return 2 * Math.PI / 60 / 60 * this.autoRotateSpeed;
@@ -616,6 +657,7 @@ export class CustomOrbitControls extends EventDispatcher {
    * @param domElement
    */
   listenToKeyEvents(domElement: HTMLElement | Window): void{
+    // @ts-ignore
     domElement.addEventListener( 'keydown', this.triggerInterface.onKeyDown );
     this._domElementKeyEvents = domElement;
   }
@@ -656,13 +698,19 @@ export class CustomOrbitControls extends EventDispatcher {
 
   dispose(): void{
 
+    // @ts-ignore
     this.domElement.removeEventListener( 'contextmenu', this.triggerInterface.onContextMenu );
 
+    // @ts-ignore
     this.domElement.removeEventListener( 'pointerdown', this.triggerInterface.onPointerDown );
+    // @ts-ignore
     this.domElement.removeEventListener( 'pointercancel', this.triggerInterface.onPointerCancel );
+    // @ts-ignore
     this.domElement.removeEventListener( 'wheel', this.triggerInterface.onMouseWheel );
 
+    // @ts-ignore
     this.domElement.removeEventListener( 'pointermove', this.triggerInterface.onPointerMove );
+    // @ts-ignore
     this.domElement.removeEventListener( 'pointerup', this.triggerInterface.onPointerUp );
 
 
@@ -918,6 +966,7 @@ export class CustomOrbitControls extends EventDispatcher {
 
   private handleTouchStartRotate() {
 
+    let pointers = this.getActivePointers();
     if ( pointers.length === 1 ) {
 
       rotateStart.set( pointers[ 0 ].pageX, pointers[ 0 ].pageY );
@@ -935,6 +984,7 @@ export class CustomOrbitControls extends EventDispatcher {
 
   private handleTouchStartPan() {
 
+    let pointers = this.getActivePointers();
     if ( pointers.length === 1 ) {
 
       panStart.set( pointers[ 0 ].pageX, pointers[ 0 ].pageY );
@@ -952,6 +1002,7 @@ export class CustomOrbitControls extends EventDispatcher {
 
   private handleTouchStartDolly() {
 
+    let pointers = this.getActivePointers();
     const dx = pointers[ 0 ].pageX - pointers[ 1 ].pageX;
     const dy = pointers[ 0 ].pageY - pointers[ 1 ].pageY;
 
@@ -979,6 +1030,7 @@ export class CustomOrbitControls extends EventDispatcher {
 
   private handleTouchMoveRotate( event ) {
 
+    let pointers = this.getActivePointers();
     if ( pointers.length == 1 ) {
 
       rotateEnd.set( event.pageX, event.pageY );
@@ -1010,6 +1062,7 @@ export class CustomOrbitControls extends EventDispatcher {
 
   private handleTouchMovePan( event ) {
 
+    let pointers = this.getActivePointers();
     if ( pointers.length === 1 ) {
 
       panEnd.set( event.pageX, event.pageY );
@@ -1076,19 +1129,32 @@ export class CustomOrbitControls extends EventDispatcher {
 
     if ( this.enabled === false ) return;
 
-    if ( pointers.length === 0 ) {
+
+
+    let stop = false;
+    for(let i = 0;i< this.triggerBefore.length && !stop;i++){
+      stop = !this.triggerBefore[i].onPointerDown.call(this.triggerBefore[i].ctx,event)
+    }
+
+
+    if ( pointers_.length === 0 ) {
 
       // @ts-ignore
       this.domElement.setPointerCapture( event.pointerId );
 
+      // @ts-ignore
       this.domElement.addEventListener( 'pointermove', this.triggerInterface.onPointerMove );
+      // @ts-ignore
       this.domElement.addEventListener( 'pointerup', this.triggerInterface.onPointerUp );
 
     }
 
     //
 
-    this.addPointer( event );
+    this.addPointer( event,!stop );
+
+
+    if(stop) return;
 
     if ( event.pointerType === 'touch' ) {
 
@@ -1106,6 +1172,13 @@ export class CustomOrbitControls extends EventDispatcher {
 
     if ( this.enabled === false ) return;
 
+    let stop = false;
+    for(let i = 0;i< this.triggerBefore.length && !stop;i++){
+      stop = !this.triggerBefore[i].onPointerMove.call(this.triggerBefore[i].ctx,event)
+    }
+
+    if(stop) return;
+
     if ( event.pointerType === 'touch' ) {
 
       this.onTouchMove( event );
@@ -1122,15 +1195,22 @@ export class CustomOrbitControls extends EventDispatcher {
 
     this.removePointer( event );
 
-    if ( pointers.length === 0 ) {
+    if ( pointers_.length === 0 ) {
 
       // @ts-ignore
       this.domElement.releasePointerCapture( event.pointerId );
 
+      // @ts-ignore
       this.domElement.removeEventListener( 'pointermove', this.triggerInterface.onPointerMove );
+      // @ts-ignore
       this.domElement.removeEventListener( 'pointerup', this.triggerInterface.onPointerUp );
 
     }
+    let stop = false;
+    for(let i = 0;i< this.triggerBefore.length && !stop;i++){
+      stop = !this.triggerBefore[i].onPointerUp.call(this.triggerBefore[i].ctx,event)
+    }
+    if(stop) return
 
     this.dispatchEvent( this._endEvent );
 
@@ -1140,7 +1220,14 @@ export class CustomOrbitControls extends EventDispatcher {
 
   private onPointerCancel( event ) {
 
+
     this.removePointer( event );
+
+    let stop = false;
+    for(let i = 0;i< this.triggerBefore.length && !stop;i++){
+      stop = !this.triggerBefore[i].onPointerCancel.call(this.triggerBefore[i].ctx,event)
+    }
+
 
   }
 
@@ -1275,9 +1362,21 @@ export class CustomOrbitControls extends EventDispatcher {
 
   private onMouseWheel( event ) {
 
-    if ( this.enabled === false || this.enableZoom === false || state !== STATE.NONE ) return;
+    if ( this.enabled === false) return;
+
+
+
+    let stop = false;
+    for(let i = 0;i< this.triggerBefore.length && !stop;i++){
+      stop = !this.triggerBefore[i].onMouseWheel.call(this.triggerBefore[i].ctx,event)
+    }
+
+
+    if(this.enableZoom === false || state !== STATE.NONE ) return;
 
     event.preventDefault();
+
+    if(stop) return;
 
     this.dispatchEvent( this._startEvent );
 
@@ -1289,7 +1388,15 @@ export class CustomOrbitControls extends EventDispatcher {
 
   private onKeyDown( event ) {
 
-    if ( this.enabled === false || this.enablePan === false ) return;
+    if ( this.enabled === false) return;
+
+    let stop = false;
+    for(let i = 0;i< this.triggerBefore.length && !stop;i++){
+      stop = !this.triggerBefore[i].onKeyDown.call(this.triggerBefore[i].ctx,event)
+    }
+    if(stop) return;
+
+    if(this.enablePan === false ) return;
 
     this.handleKeyDown( event );
 
@@ -1299,6 +1406,7 @@ export class CustomOrbitControls extends EventDispatcher {
 
     this.trackPointer( event );
 
+    let pointers = this.getActivePointers();
     switch ( pointers.length ) {
 
       case 1:
@@ -1433,29 +1541,36 @@ export class CustomOrbitControls extends EventDispatcher {
 
   }
 
+
+
+
   private onContextMenu( event ) {
 
     if ( this.enabled === false ) return;
+
+    let stop = false;
+    for(let i = 0;i< this.triggerBefore.length && !stop;i++){
+      stop = !this.triggerBefore[i].onContextMenu.call(this.triggerBefore[i].ctx,event)
+    }
 
     event.preventDefault();
 
   }
 
-  private addPointer( event ) {
+  private addPointer( event,active:boolean ) {
 
-    pointers.push( event );
+    pointers_.push( {event:event,active:active} );
 
   }
 
   private removePointer( event ) {
 
-    delete pointerPositions[ event.pointerId ];
 
-    for ( let i = 0; i < pointers.length; i ++ ) {
+    for ( let i = 0; i < pointers_.length; i ++ ) {
 
-      if ( pointers[ i ].pointerId == event.pointerId ) {
+      if ( pointers_[ i ].event.pointerId == event.pointerId ) {
 
-        pointers.splice( i, 1 );
+        pointers_.splice( i, 1 );
         return;
 
       }
@@ -1466,24 +1581,48 @@ export class CustomOrbitControls extends EventDispatcher {
 
   private trackPointer( event ) {
 
-    let position = pointerPositions[ event.pointerId ];
+    let position =undefined;
+    let index = -1;
+    for(let i = 0 ;i < pointers_.length && index < 0;i++){
+      if(pointers_[i].event.pointerId == event.pointerId){
+        index = i;
+      }
+    }
+
+    position = pointers_[ index ].position;
 
     if ( position === undefined ) {
 
       position = new Vector2();
-      pointerPositions[ event.pointerId ] = position;
+      pointers_[ index ].position = position;
 
     }
 
     position.set( event.pageX, event.pageY );
 
   }
-
+  private getActivePointers(){
+    let pointers = [];
+    for(let i = 0;i<pointers_.length;i++){
+      if(pointers_[i].active){
+        pointers.push(pointers_[i].event)
+      }
+    }
+    return pointers
+  }
+  private getActivePointers_(){
+    let pointers = [];
+    for(let i = 0;i<pointers_.length;i++){
+      if(pointers_[i].active){
+        pointers.push(pointers_[i])
+      }
+    }
+    return pointers
+  }
   private getSecondPointerPosition( event ) {
+    let pointers = this.getActivePointers_();
+    return ( event.pointerId === pointers[ 0 ].event.pointerId ) ? pointers[ 1 ].position : pointers[ 0 ].position;
 
-    const pointer = ( event.pointerId === pointers[ 0 ].pointerId ) ? pointers[ 1 ] : pointers[ 0 ];
-
-    return pointerPositions[ pointer.pointerId ];
 
   }
 

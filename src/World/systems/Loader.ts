@@ -2,9 +2,11 @@ import { BufferAttribute, Mesh, Texture } from 'three';
 import { GLTF, GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 import * as THREE from 'three';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader';
+import TextureAtlas from './TextureAtlas';
 
 const gltfLoader = new GLTFLoader();
 const textureLoader = new THREE.TextureLoader();
+const imageLoader = new THREE.ImageLoader();
 
 const dracoLoader = new DRACOLoader();
 dracoLoader.setDecoderPath( 'public/vendor/draco/gltf/' );
@@ -12,6 +14,9 @@ gltfLoader.setDRACOLoader( dracoLoader );
 class LoaderClass{
 
   files:{
+    spriteSheets:{
+      general:TextureAtlas
+    },
     maps:{
       threeTone:Texture,
       fourTone:Texture,
@@ -19,15 +24,15 @@ class LoaderClass{
     }
     character:{
       textures:{
-        shirt:Texture[],
-        pants:Texture[],
-        armL:Texture[],
-        armR:Texture[],
-        legL:Texture[],
-        legR:Texture[],
-        shoes:Texture[],
-        gloves:Texture[],
-        facial:Texture[]
+        shirt:HTMLImageElement[],
+        pants:HTMLImageElement[],
+        armL:HTMLImageElement[],
+        armR:HTMLImageElement[],
+        legL:HTMLImageElement[],
+        legR:HTMLImageElement[],
+        shoes:HTMLImageElement[],
+        gloves:HTMLImageElement[],
+        facial:HTMLImageElement[]
       }
       gltf: {
         withOutline:GLTF,
@@ -40,7 +45,7 @@ class LoaderClass{
       }
     }
     city:{
-      texture:Texture
+      texture:HTMLImageElement
       withOutline:{
         gltf:GLTF,
         uvOri:BufferAttribute
@@ -87,7 +92,9 @@ class LoaderClass{
       cityText,
       mapThreeTone,
       mapFourTone,
-      mapFiveTone
+      mapFiveTone,
+      generalSpriteSheetIMG,
+      generalSpriteSheetJSON
 
     ] = await Promise.all([
       gltfLoader.loadAsync('public/assets/models/character.glb'),
@@ -100,20 +107,22 @@ class LoaderClass{
       gltfLoader.loadAsync('public/assets/models/city_outline.glb'),
       gltfLoader.loadAsync('public/assets/models/flower.glb'),
       gltfLoader.loadAsync('public/assets/models/flower_outline.glb'),
-      this.loadTextureProm('public/assets/textures/character_arm_l0.png'),
-      this.loadTextureProm('public/assets/textures/character_arm_l1.png'),
-      this.loadTextureProm('public/assets/textures/character_arm_r0.png'),
-      this.loadTextureProm('public/assets/textures/character_arm_r1.png'),
-      this.loadTextureProm('public/assets/textures/character_leg_l0.png'),
-      this.loadTextureProm('public/assets/textures/character_leg_l1.png'),
-      this.loadTextureProm('public/assets/textures/character_leg_r0.png'),
-      this.loadTextureProm('public/assets/textures/character_leg_r1.png'),
-      this.loadTextureProm('public/assets/textures/character_pants0.png'),
-      this.loadTextureProm('public/assets/textures/character_shirt0.png'),
-      this.loadTextureProm('public/assets/textures/city.png'),
+      this.loadImageProm('public/assets/textures/character_arm_l0.png'),
+      this.loadImageProm('public/assets/textures/character_arm_l1.png'),
+      this.loadImageProm('public/assets/textures/character_arm_r0.png'),
+      this.loadImageProm('public/assets/textures/character_arm_r1.png'),
+      this.loadImageProm('public/assets/textures/character_leg_l0.png'),
+      this.loadImageProm('public/assets/textures/character_leg_l1.png'),
+      this.loadImageProm('public/assets/textures/character_leg_r0.png'),
+      this.loadImageProm('public/assets/textures/character_leg_r1.png'),
+      this.loadImageProm('public/assets/textures/character_pants0.png'),
+      this.loadImageProm('public/assets/textures/character_shirt0.png'),
+      this.loadImageProm('public/assets/textures/city.png'),
       this.loadTextureProm('public/assets/textures/mapThreeTone.jpg'),
       this.loadTextureProm('public/assets/textures/mapFourTone.jpg'),
       this.loadTextureProm('public/assets/textures/mapFiveTone.jpg'),
+      this.loadImageProm('public/assets/textures/general.png'),
+      this.loadJSONProm("public/assets/textures/general.json")
     ]);
     console.log(characterGLTF);
 
@@ -125,6 +134,9 @@ class LoaderClass{
 
 
     this.files={
+      spriteSheets:{
+        general:new TextureAtlas(generalSpriteSheetJSON,generalSpriteSheetIMG)
+      },
       maps:{
         threeTone:mapThreeTone,
         fourTone:mapFourTone,
@@ -192,6 +204,42 @@ class LoaderClass{
         // onError callback
         reject
       );
+    })
+  }
+  private loadImageProm(path:string):Promise<HTMLImageElement>{
+    return new Promise<HTMLImageElement>((resolve, reject)=>{
+      imageLoader.load(
+        // resource URL
+        path,
+
+        // onLoad callback
+        resolve,
+
+        // onProgress callback currently not supported
+        undefined,
+
+        // onError callback
+        reject
+      );
+    })
+  }
+  private  loadJSONProm(url ) {
+    return new Promise<{[k:string]:any}>((resolve, reject)=>{
+      var rawFile = new XMLHttpRequest();
+      rawFile.overrideMimeType("application/json");
+      rawFile.open("GET", url, true);
+      rawFile.onreadystatechange = function() {
+        if (rawFile.readyState === 4 && (Number(rawFile.status) == 200)) {
+          let json = {};
+          console.log(rawFile.responseText)
+          try {
+            json = JSON.parse(rawFile.responseText)
+          }catch (e){}
+          console.log(rawFile.responseText,json)
+          resolve(json);
+        }
+      }
+      rawFile.send(null);
     })
   }
 }

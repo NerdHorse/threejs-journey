@@ -41,7 +41,6 @@ export class Character{
   private loopAnimationFinished: {
     func:(event:any)=>void,
     nextAnimation:string,
-    syncTimeout:any,
     syncTimeoutAnimation:string
   }
   private ANIMATIONCROSSFADE = 0.25;
@@ -66,7 +65,6 @@ export class Character{
 
       },
       nextAnimation:null,
-      syncTimeout:null,
       syncTimeoutAnimation:null
     }
   }
@@ -307,10 +305,7 @@ export class Character{
   public prepareCrossFade( end:string) {
     if(
       this.obj == null
-      || (
-        this.loopAnimationFinished.syncTimeout
-        && this.loopAnimationFinished.syncTimeoutAnimation == end
-      )
+      || this.loopAnimationFinished.syncTimeoutAnimation == end
       || this.loopAnimationFinished.nextAnimation == end
     ){
       return
@@ -324,11 +319,6 @@ export class Character{
 
     this.loopAnimationFinished.nextAnimation = null;
 
-    if(this.loopAnimationFinished.syncTimeout != null){
-      clearTimeout(this.loopAnimationFinished.syncTimeout);
-      this.loopAnimationFinished.syncTimeout = null;
-      this.loopAnimationFinished.syncTimeoutAnimation = null;
-    }
 
     if ( startAction ===this.actions.idle ) {
 
@@ -337,11 +327,8 @@ export class Character{
     } else if(this.obj && this.actionSelected != end) {
       let this_=this;
       this.loopAnimationFinished.syncTimeoutAnimation = end;
-      this.loopAnimationFinished.syncTimeout = setTimeout(()=>{
-        this_.animationSynchronizeCrossFade( end );
-        this_.loopAnimationFinished.syncTimeout = null;
-        this_.loopAnimationFinished.syncTimeoutAnimation = null;
-        },100)
+      this_.animationSynchronizeCrossFade( end );
+      this_.loopAnimationFinished.syncTimeoutAnimation = null;
 
     }
 
@@ -370,7 +357,7 @@ export class Character{
           if(bufferGeometry1){
             bufferGeometry1 = BufferGeometryUtils.mergeBufferGeometries([bufferGeometry1,(obj as Mesh).geometry])
           }else{
-            bufferGeometry1 = (obj as Mesh).geometry
+            bufferGeometry1 = (obj as Mesh).geometry.clone()
           }
           if(skeleton == null){
             skeleton = (obj as SkinnedMesh).skeleton;
@@ -382,7 +369,7 @@ export class Character{
               if(bufferGeometry1){
                 bufferGeometry1 = BufferGeometryUtils.mergeBufferGeometries([bufferGeometry1,(obj.children[j] as Mesh).geometry])
               }else{
-                bufferGeometry1 = (obj.children[j] as Mesh).geometry
+                bufferGeometry1 = (obj.children[j] as Mesh).geometry.clone()
               }
               if(skeleton == null){
                 skeleton = (obj.children[j] as SkinnedMesh).skeleton;
@@ -392,7 +379,7 @@ export class Character{
               if(bufferGeometry2){
                 bufferGeometry2 = BufferGeometryUtils.mergeBufferGeometries([bufferGeometry2,(obj.children[j] as Mesh).geometry])
               }else{
-                bufferGeometry2 = (obj.children[j] as Mesh).geometry
+                bufferGeometry2 = (obj.children[j] as Mesh).geometry.clone()
               }
             }
 

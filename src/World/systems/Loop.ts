@@ -15,6 +15,7 @@ import gsap from "gsap";
 import { CharacterControls } from './CharacterControls';
 import { FlowersManager } from '../components/FlowersManager';
 import { CustomOrbitControls } from './CustomOrbitControls';
+import { UIManager } from './UIManager/UIManager';
 
 interface LoopTypes {
   camera: PerspectiveCamera | OrthographicCamera;
@@ -28,7 +29,7 @@ class Loop {
   scene: LoopTypes['scene'];
   renderer: LoopTypes['renderer'];
   private mixers: (AnimationMixer|CharacterControls|FlowersManager)[];
-  private controls: CustomOrbitControls[];
+  private controls: (CustomOrbitControls|UIManager)[];
   stats: Stats;
 
   constructor({ camera, scene, renderer }: LoopTypes) {
@@ -55,11 +56,11 @@ class Loop {
   }
 
 
-  addControls(control:CustomOrbitControls){
+  addControls(control:CustomOrbitControls|UIManager){
     this.controls.push(control);
   }
-  removeControls(control_:CustomOrbitControls){
-    let newControls:CustomOrbitControls[] = [];
+  removeControls(control_:CustomOrbitControls|UIManager){
+    let newControls:(CustomOrbitControls|UIManager)[] = [];
     for (const control of this.controls) {
       if(control != control_){
         newControls.push(control)

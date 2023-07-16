@@ -38,11 +38,12 @@ import { ControlKeys } from './enums/ControlKeys';
 import { CharacterControls } from './systems/CharacterControls';
 import { FlowersManager } from './components/FlowersManager';
 import { CustomOrbitControls } from './systems/CustomOrbitControls';
+import { UIManager } from './systems/UIManager/UIManager';
 
 
 class WorldClass {
 
-  private camera: PerspectiveCamera | OrthographicCamera;
+  camera: PerspectiveCamera | OrthographicCamera;
   scene: Scene;
   renderer: WebGLRenderer | WebGL1Renderer;
    controls: {
@@ -54,6 +55,7 @@ class WorldClass {
   private isRunning_: boolean=false;
   private container: HTMLCanvasElement|null=null;
 
+  ui:UIManager;
   public elements:{
     city:{
       noOutline:Object3D
@@ -128,10 +130,10 @@ class WorldClass {
 
 
     this.camera = new PerspectiveCamera(
-      35, // fov = Field Of View
-      1, // aspect ratio (dummy value)
+      30, // fov = Field Of View
+      window.innerWidth / window.innerHeight, // aspect ratio (dummy value)
       0.1, // near clipping plane
-      100 // far clipping plane
+      50 // far clipping plane
     );
 
     this.camera.position.set(0, 2, 16);
@@ -148,6 +150,8 @@ class WorldClass {
       // camera.position.y += radiansPerSecond * delta;
     };
 
+    this.ui = new UIManager(this.camera,this.scene);
+
     this.controls ={
       orbit:  new CustomOrbitControls(this.camera, this.renderer.domElement),
       character_3th: new CharacterControls(this.camera, this.scene, this.renderer.domElement)
@@ -161,6 +165,19 @@ class WorldClass {
     this.controls.orbit.enableRotate = true;
     this.controls.orbit.maxPolarAngle = Math.PI / 2 - 0.05;
 
+    let uiListeners={
+      myID:"ui",
+      onContextMenu:this.ui.onContextMenu,
+      onPointerDown:this.ui.onPointerDown,
+      onPointerCancel:this.ui.onPointerCancel,
+      onMouseWheel:this.ui.onMouseWheel,
+      onPointerMove:this.ui.onPointerMove,
+      onPointerUp:this.ui.onPointerUp,
+      onKeyDown:this.ui.onKeyDown,
+      ctx:this.ui
+    }
+    this.controls.orbit.addTriggerBefore(uiListeners);
+    this.controls.character_3th.orbitControl.addTriggerBefore(uiListeners);
 
 
 
@@ -310,6 +327,7 @@ class WorldClass {
     this.loop.addMixer(this.controls.character_3th);
 
     this.loop.addMixer(flowerManager);
+    this.loop.addControls(this.ui);
 
     this.updateStreetVisibility(true);
 
