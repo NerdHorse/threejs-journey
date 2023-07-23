@@ -4,7 +4,7 @@ import { World } from '../World';
 import { Utils } from './Utils';
 import { Menu } from './GUI';
 import { Mesh, Texture } from 'three';
-import { Loader } from './Loader';
+import { Loader } from './Loader/Loader';
 
 class TextureComposerClass{
 

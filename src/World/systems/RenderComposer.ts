@@ -5,7 +5,7 @@ import {
   EffectComposer,
   EffectPass,
   HueSaturationEffect, KernelSize, NoiseEffect,
-  RenderPass, ScanlineEffect, SMAAEffect, VignetteEffect,ShaderPass
+  RenderPass, ScanlineEffect, SMAAEffect, VignetteEffect, ShaderPass, SelectiveBloomEffect,
 } from 'postprocessing';
 import { HalfFloatType, PerspectiveCamera, Scene, WebGLRenderer } from 'three';
 import {FXAAShader } from 'three/examples/jsm/shaders/FXAAShader'
@@ -22,7 +22,7 @@ class RenderComposerManager{
     }
     bloom:{
       activated: boolean
-      effect:BloomEffect
+      effect:SelectiveBloomEffect
 
     }
     vignette:{
@@ -63,14 +63,7 @@ class RenderComposerManager{
     },
     bloom:{
       activated: true,
-      effect:new BloomEffect({
-        intensity:0.2,
-        blendFunction: BlendFunction.SCREEN,
-        kernelSize: KernelSize.MEDIUM,
-        luminanceThreshold: 0.54,
-        luminanceSmoothing: 0.62,
-        mipmapBlur: true,
-      })
+      effect:null
     },
     vignette:{
       activated: false,
@@ -118,6 +111,18 @@ class RenderComposerManager{
     this.renderer = renderer;
     this.scene = scene;
     this.camera = camera
+
+
+    this.effects.bloom.effect = new SelectiveBloomEffect(this.scene,this.camera,{
+      intensity:0.2,
+      blendFunction: BlendFunction.SCREEN,
+      kernelSize: KernelSize.MEDIUM,
+      luminanceThreshold: 0.54,
+      luminanceSmoothing: 0.62,
+      mipmapBlur: true,
+    });
+    this.effects.bloom.effect.inverted  = true;
+
     this.composer = new EffectComposer(this.renderer, {
       frameBufferType: HalfFloatType
     });
@@ -180,6 +185,7 @@ class RenderComposerManager{
     return pass;
   }
   render(){
+
     if(this.currentPass == null){
       this.renderer.render(this.scene,this.camera)
     }else{

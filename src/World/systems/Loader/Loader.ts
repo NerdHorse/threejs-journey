@@ -15,6 +15,7 @@ class LoaderClass{
 
   files:{
     spriteSheets:{
+      [k:string]:TextureAtlas
       general:TextureAtlas
     },
     maps:{

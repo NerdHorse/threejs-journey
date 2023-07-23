@@ -10,6 +10,7 @@ import {
   Vector3,
 } from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
+import { World } from '../World';
 
 const STATE = {
   NONE: - 1,
@@ -82,10 +83,6 @@ export class CustomOrbitControls extends EventDispatcher {
   private _changeEvent = { type: 'change' };
   private _startEvent = { type: 'start' };
   private _endEvent = { type: 'end' };
-  /**
-   * The camera being controlled.
-   */
-  object: PerspectiveCamera | OrthographicCamera;
 
   /**
    * The HTMLElement used to listen for mouse / touch events.
@@ -301,12 +298,11 @@ export class CustomOrbitControls extends EventDispatcher {
 
   customBehavior:boolean = false;
 
-  constructor(object: PerspectiveCamera| OrthographicCamera, domElement?: HTMLElement){
+  constructor( ){
     super();
-    this.object = object;
-    this.quat = new Quaternion().setFromUnitVectors( object.up, new Vector3( 0, 1, 0 ) );
+    this.quat = new Quaternion().setFromUnitVectors( World.camera.up, new Vector3( 0, 1, 0 ) );
     this.quatInverse = this.quat.clone().invert();
-    this.domElement = domElement;
+    this.domElement = World.renderer.domElement;
     this.domElement.style.touchAction = 'none'; // disable touch scroll
 
     // Set to false to disable this control
@@ -369,8 +365,8 @@ export class CustomOrbitControls extends EventDispatcher {
 
     // for reset
     this.target0 = this.target.clone();
-    this.position0 = this.object.position.clone();
-    this.zoom0 = this.object.zoom;
+    this.position0 = World.elements.camera.position.clone();
+    this.zoom0 = World.camera.zoom;
 
     // the target DOM element for key events
     this._domElementKeyEvents = null;
@@ -470,7 +466,7 @@ export class CustomOrbitControls extends EventDispatcher {
     } else {
 
       this.panUpV.setFromMatrixColumn( objectMatrix, 0 );
-      this.panUpV.crossVectors(this.object.up, this.panUpV );
+      this.panUpV.crossVectors(World.camera.up, this.panUpV );
 
     }
 
@@ -484,37 +480,19 @@ export class CustomOrbitControls extends EventDispatcher {
 
     const element =this.domElement;
 
-    if ((this.object as PerspectiveCamera).isPerspectiveCamera ) {
+    // perspective
+    const position =World.elements.camera.position;
+    this.panOffset.copy( position ).sub(this.target );
+    let targetDistance = this.panOffset.length();
 
-      // perspective
-      const position =this.object.position;
-      this.panOffset.copy( position ).sub(this.target );
-      let targetDistance = this.panOffset.length();
+    // half of the fov is center to top of screen
+    targetDistance *= Math.tan( (World.camera.fov / 2 ) * Math.PI / 180.0 );
 
-      // half of the fov is center to top of screen
-      targetDistance *= Math.tan( ((this.object as PerspectiveCamera).fov / 2 ) * Math.PI / 180.0 );
-
-      // we use only clientHeight here so aspect ratio does not distort speed
-      // @ts-ignore
-      this.panLeft( 2 * deltaX * targetDistance / element.clientHeight,this.object.matrix );
-      // @ts-ignore
-      this.panUp( 2 * deltaY * targetDistance / element.clientHeight,this.object.matrix );
-
-    } else if ((this.object as OrthographicCamera).isOrthographicCamera ) {
-
-      // orthographic
-      // @ts-ignore
-      this.panLeft( deltaX * ((this.object as OrthographicCamera).right -(this.object as OrthographicCamera).left ) /this.object.zoom / element.clientWidth,this.object.matrix );
-      // @ts-ignore
-      this.panUp( deltaY * ((this.object as OrthographicCamera).top -(this.object as OrthographicCamera).bottom ) /this.object.zoom / element.clientHeight,this.object.matrix );
-
-    } else {
-
-      // camera neither orthographic nor perspective
-      console.warn( 'WARNING: OrbitControls.js encountered an unknown camera type - pan disabled.' );
-     this.enablePan = false;
-
-    }
+    // we use only clientHeight here so aspect ratio does not distort speed
+    // @ts-ignore
+    this.panLeft( 2 * deltaX * targetDistance / element.clientHeight,this.object.matrix );
+    // @ts-ignore
+    this.panUp( 2 * deltaY * targetDistance / element.clientHeight,this.object.matrix );
 
   }
   /**
@@ -527,7 +505,7 @@ export class CustomOrbitControls extends EventDispatcher {
       return ;
     }
 
-    const position = this.object.position;
+    const position = World.elements.camera.position;
 
     this.updateOffset.copy( position ).sub( this.target );
 
@@ -610,7 +588,7 @@ export class CustomOrbitControls extends EventDispatcher {
 
     position.copy( this.target ).add( this.updateOffset );
 
-    this.object.lookAt( this.target );
+    World.camera.lookAt( this.target );
 
     if ( this.enableDamping === true ) {
 
@@ -634,13 +612,13 @@ export class CustomOrbitControls extends EventDispatcher {
     // using small-angle approximation cos(x/2) = 1 - x^2 / 8
 
     if ( zoomChanged ||
-      this.lastPosition.distanceToSquared( this.object.position ) > EPS ||
-      8 * ( 1 - this.lastQuaternion.dot( this.object.quaternion ) ) > EPS ) {
+      this.lastPosition.distanceToSquared( World.elements.camera.position ) > EPS ||
+      8 * ( 1 - this.lastQuaternion.dot( World.elements.camera.quaternion ) ) > EPS ) {
 
       this.dispatchEvent( this._changeEvent );
 
-      this.lastPosition.copy( this.object.position );
-      this.lastQuaternion.copy( this.object.quaternion );
+      this.lastPosition.copy( World.elements.camera.position );
+      this.lastQuaternion.copy( World.elements.camera.quaternion );
       zoomChanged = false;
 
       return true;
@@ -669,8 +647,8 @@ export class CustomOrbitControls extends EventDispatcher {
   saveState(): void{
 
     this.target0.copy( this.target );
-    this.position0.copy( this.object.position );
-    this.zoom0 = this.object.zoom;
+    this.position0.copy( World.elements.camera.position );
+    this.zoom0 =World.camera.zoom;
   }
 
   /**
@@ -679,10 +657,10 @@ export class CustomOrbitControls extends EventDispatcher {
    */
   reset(): void{
     this.target.copy( this.target0 );
-    this.object.position.copy( this.position0 );
-    this.object.zoom = this.zoom0;
+    World.elements.camera.position.copy( this.position0 );
+    World.camera.zoom = this.zoom0;
 
-    this.object.updateProjectionMatrix();
+    World.camera.updateProjectionMatrix();
     this.dispatchEvent( this._changeEvent );
 
     this.update();
@@ -742,47 +720,19 @@ export class CustomOrbitControls extends EventDispatcher {
    * Returns the distance from the camera to the target.
    */
   getDistance(): number{
-    return this.object.position.distanceTo( this.target );
+    return World.elements.camera.position.distanceTo( this.target );
   }
   private dollyOut( dollyScale ) {
 
-    if ( (this.object as PerspectiveCamera).isPerspectiveCamera ) {
 
-      scale /= dollyScale;
-
-    } else if ( (this.object as OrthographicCamera).isOrthographicCamera ) {
-
-      this.object.zoom = Math.max( this.minZoom, Math.min( this.maxZoom, this.object.zoom * dollyScale ) );
-      this.object.updateProjectionMatrix();
-      zoomChanged = true;
-
-    } else {
-
-      console.warn( 'WARNING: OrbitControls.js encountered an unknown camera type - dolly/zoom disabled.' );
-      this.enableZoom = false;
-
-    }
+    scale /= dollyScale;
 
   }
 
   private dollyIn( dollyScale ) {
 
-    if ((this.object as PerspectiveCamera).isPerspectiveCamera ) {
 
-      scale *= dollyScale;
-
-    } else if ( (this.object as OrthographicCamera).isOrthographicCamera ) {
-
-      this.object.zoom = Math.max( this.minZoom, Math.min( this.maxZoom, this.object.zoom / dollyScale ) );
-      this.object.updateProjectionMatrix();
-      zoomChanged = true;
-
-    } else {
-
-      console.warn( 'WARNING: OrbitControls.js encountered an unknown camera type - dolly/zoom disabled.' );
-      this.enableZoom = false;
-
-    }
+    scale *= dollyScale;
 
   }
 

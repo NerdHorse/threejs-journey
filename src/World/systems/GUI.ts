@@ -29,7 +29,7 @@ import {
   ScanlineEffect,
   VignetteEffect, VignetteTechnique,
 } from 'postprocessing';
-import { Loader } from './Loader';
+import { Loader } from './Loader/Loader';
 
 class MenuManager{
 
@@ -371,6 +371,8 @@ class MenuManager{
     bloomFolder.add(this.generalData.renderer.postProcessing.bloom, "intensity",0,3,0.01).onChange((k)=>this.onPostProcessingSettingsChange());
     bloomFolder.add(this.generalData.renderer.postProcessing.bloom, "luminanceThreshold",0,1,0.01).onChange((k)=>this.onPostProcessingSettingsChange());
     bloomFolder.add(this.generalData.renderer.postProcessing.bloom, "luminanceSmoothing",0,1,0.01).onChange((k)=>this.onPostProcessingSettingsChange());
+    bloomFolder.add(this.generalData.renderer.postProcessing.bloom, "mipmapBlur",0,1,0.01).onChange((k)=>this.onPostProcessingSettingsChange());
+
 
     let vignetteFolder = postProcessingFolder.addFolder('Vignette')
     vignetteFolder.add(RenderComposer.effects.vignette, 'activated').onFinishChange(()=>this.onPostProcessingActivationChange())

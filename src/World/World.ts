@@ -30,7 +30,7 @@ import { TextureComposer } from './systems/TextureComposer';
 import { Menu } from './systems/GUI';
 import { Utils } from './systems/Utils';
 import { Character } from './components/Character';
-import { Loader } from './systems/Loader';
+import { Loader } from './systems/Loader/Loader';
 import { HueSaturationEffect} from 'postprocessing';
 import { GammaCorrectionEffect } from './systems/GammaCorrectionEffect';
 import { RenderComposer } from './systems/RenderComposer';
@@ -39,11 +39,12 @@ import { CharacterControls } from './systems/CharacterControls';
 import { FlowersManager } from './components/FlowersManager';
 import { CustomOrbitControls } from './systems/CustomOrbitControls';
 import { UIManager } from './systems/UIManager/UIManager';
+import { VRButton } from 'three/examples/jsm/webxr/VRButton.js';
 
 
 class WorldClass {
 
-  camera: PerspectiveCamera | OrthographicCamera;
+  camera: PerspectiveCamera;
   scene: Scene;
   renderer: WebGLRenderer | WebGL1Renderer;
    controls: {
@@ -55,8 +56,8 @@ class WorldClass {
   private isRunning_: boolean=false;
   private container: HTMLCanvasElement|null=null;
 
-  ui:UIManager;
   public elements:{
+    camera:Object3D,
     city:{
       noOutline:Object3D
       withOutline:Object3D
@@ -116,6 +117,9 @@ class WorldClass {
       depth: true,
       stencil: false
     });
+    this.renderer.xr.enabled = true;
+    this.renderer.xr.enabled = true;
+    this.renderer.xr.setReferenceSpaceType( 'local' );
     this.renderer.outputEncoding = sRGBEncoding;
     this.renderer.physicallyCorrectLights = true;
 
@@ -136,48 +140,14 @@ class WorldClass {
       50 // far clipping plane
     );
 
-    this.camera.position.set(0, 2, 16);
+
     // @ts-ignore
     this.camera.aspect = this.container.clientWidth / this.container.clientHeight;
-    this.camera.updateProjectionMatrix(); // automatically recalculate the frustrum
 
-    const radiansPerSecond = MathUtils.degToRad(60);
 
-    // @ts-ignore
-    this.camera.tick = (delta: number) => {
-      this.camera.position.z += radiansPerSecond * delta;
-      // camera.position.x += radiansPerSecond * delta;
-      // camera.position.y += radiansPerSecond * delta;
-    };
 
-    this.ui = new UIManager(this.camera,this.scene);
 
-    this.controls ={
-      orbit:  new CustomOrbitControls(this.camera, this.renderer.domElement),
-      character_3th: new CharacterControls(this.camera, this.scene, this.renderer.domElement)
-    }
 
-    this.controls.orbit.enabled = false;
-    this.controls.orbit.enableDamping = true;
-    this.controls.orbit.maxDistance = 60;
-    this.controls.orbit.enablePan = true;
-    this.controls.orbit.enableZoom = true;
-    this.controls.orbit.enableRotate = true;
-    this.controls.orbit.maxPolarAngle = Math.PI / 2 - 0.05;
-
-    let uiListeners={
-      myID:"ui",
-      onContextMenu:this.ui.onContextMenu,
-      onPointerDown:this.ui.onPointerDown,
-      onPointerCancel:this.ui.onPointerCancel,
-      onMouseWheel:this.ui.onMouseWheel,
-      onPointerMove:this.ui.onPointerMove,
-      onPointerUp:this.ui.onPointerUp,
-      onKeyDown:this.ui.onKeyDown,
-      ctx:this.ui
-    }
-    this.controls.orbit.addTriggerBefore(uiListeners);
-    this.controls.character_3th.orbitControl.addTriggerBefore(uiListeners);
 
 
 
@@ -264,6 +234,7 @@ class WorldClass {
     console.log(Loader.files.city.noOutline.gltf.scene);
 
     this.elements={
+      camera:new Object3D(),
       city:{
         noOutline:Loader.files.city.noOutline.gltf.scene,
         withOutline:Loader.files.city.withOutline.gltf.scene.children[0]
@@ -286,8 +257,21 @@ class WorldClass {
     };
 
 
+    this.elements.camera.add( this.camera );
 
+    this.elements.camera.position.set(0, 2, 16);
 
+    this.controls ={
+      orbit:  new CustomOrbitControls( ),
+      character_3th: new CharacterControls()
+    }
+    this.controls.orbit.enabled = false;
+    this.controls.orbit.enableDamping = true;
+    this.controls.orbit.maxDistance = 60;
+    this.controls.orbit.enablePan = true;
+    this.controls.orbit.enableZoom = true;
+    this.controls.orbit.enableRotate = true;
+    this.controls.orbit.maxPolarAngle = Math.PI / 2 - 0.05;
 
     (this.elements.city.noOutline.children[0] as Mesh).material = this.materials.types[Menu.generalData.material.selected];
 
@@ -303,31 +287,45 @@ class WorldClass {
     this.scene.add( hemisphereLight );
 
     this.scene.add(helperGrid, helperAxes);
-    this.scene.add( this.camera );
+    this.scene.add(this.elements.camera);
+
+
 
     ambientLight.visible = false;
 
 
+
+    UIManager.init();
+    let uiListeners={
+      myID:"ui",
+      onContextMenu:UIManager.onContextMenu,
+      onPointerDown:UIManager.onPointerDown,
+      onPointerCancel:UIManager.onPointerCancel,
+      onMouseWheel:UIManager.onMouseWheel,
+      onPointerMove:UIManager.onPointerMove,
+      onPointerUp:UIManager.onPointerUp,
+      onKeyDown:UIManager.onKeyDown,
+      ctx:UIManager
+    }
+    this.controls.orbit.addTriggerBefore(uiListeners);
+    this.controls.character_3th.orbitControl.addTriggerBefore(uiListeners);
 
     RenderComposer.init(this.renderer,this.scene,this.camera)
 
 
     this.container.append(this.renderer.domElement);
 
+    document.body.appendChild( VRButton.createButton( this.renderer ) );
 
 
 
-    this.loop = new Loop({
-      camera:this.camera,
-      scene:this.scene,
-      renderer:this.renderer
-    });
+    this.loop = new Loop();
 
     this.loop.addControls(this.controls.orbit);
     this.loop.addMixer(this.controls.character_3th);
 
     this.loop.addMixer(flowerManager);
-    this.loop.addControls(this.ui);
+    this.loop.addControls(UIManager);
 
     this.updateStreetVisibility(true);
 

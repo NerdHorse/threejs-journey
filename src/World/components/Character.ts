@@ -17,7 +17,7 @@ import { World } from '../World';
 import { TextureComposer } from '../systems/TextureComposer';
 import { Menu } from '../systems/GUI';
 import { ICharacterBuilderPartBlockData } from '../interfaces/ICharacterBuilderPartData';
-import { Loader } from '../systems/Loader';
+import { Loader } from '../systems/Loader/Loader';
 import gsap from "gsap";
 import { GUI } from 'dat.gui';
 

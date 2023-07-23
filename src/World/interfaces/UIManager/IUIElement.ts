@@ -4,7 +4,7 @@ import { UIElementStage } from '../../enums/UIElementStage';
 import { Anchor } from '../../enums/Anchor';
 import { Origin } from '../../enums/Origin';
 
-export interface IUIElements{
+export interface IUIElement {
   id:number,
   type:UIElementType
   data:{
@@ -22,6 +22,16 @@ export interface IUIElements{
         pressed?:string,
       }
     },
+    size?:{
+      width:number,
+      height:number,
+    },
+    margins?:{
+      leftWidth:number, // size of the left vertical bar (A)
+      topHeight:number, // size of the top horizontal bar (C)
+      rightWidth:number, // size of the right vertical bar (B)
+      bottomHeight:number, // size of the bottom horizontal bar (D)
+    },
     x:number,
     y:number,
     scale:number,
@@ -31,9 +41,9 @@ export interface IUIElements{
   state:UIElementStage,
   isButton:boolean,
   isPressed:boolean
-
+  attributeIndexes:number[],
   callbacks?:{
-    up:(pointerId:number)=>void
+    up:(pointerId:number,over:boolean)=>void
     down:(pointerId:number)=>void
     move?:(pointerId:number)=>void
   }

@@ -1,6 +1,6 @@
 import { World } from './World/World';
-import { Loader } from './World/systems/Loader';
-import { Color } from 'three';
+import { Loader } from './World/systems/Loader/Loader';
+import { Color, PerspectiveCamera } from 'three';
 import { Menu } from './World/systems/GUI';
 async function main() {
   const container = document.querySelector(
@@ -14,7 +14,16 @@ async function main() {
   World.start();
 
   Menu.init();
+  function onWindowResize() {
 
+    (World.camera as PerspectiveCamera).aspect = window.innerWidth / window.innerHeight;
+    World.camera.updateProjectionMatrix();
+
+    World.renderer.setSize( window.innerWidth, window.innerHeight );
+
+  }
+
+  window.addEventListener( 'resize', onWindowResize );
 }
 
 main().catch((err) => {

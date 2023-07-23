@@ -11,6 +11,7 @@ import {
 import { ControlKeys } from '../enums/ControlKeys';
 import { World } from '../World';
 import { CustomOrbitControls } from './CustomOrbitControls';
+import { JoyStickControl } from './UIManager/parts/JoyStick/JoyStick';
 
 const pi = Math.PI;
 
@@ -18,7 +19,6 @@ export class CharacterControls {
 
   private DIRECTIONS  =[ControlKeys.W, ControlKeys.A, ControlKeys.S, ControlKeys.D]
   orbitControl: CustomOrbitControls
-  private camera: Camera
 
 
   // temporary data
@@ -33,13 +33,13 @@ export class CharacterControls {
   private walkVelocity = 2;
   private lastDirection = 0;
   enabled_:boolean =true;
+  private cameraContainer:Object3D
+  constructor() {
+    this.cameraContainer = World.elements.camera;
 
-  constructor(camera: PerspectiveCamera | OrthographicCamera,scene:Scene,domElement?: HTMLElement) {
 
 
-
-
-    this.orbitControl = new CustomOrbitControls(camera,domElement);
+    this.orbitControl = new CustomOrbitControls();
     this.orbitControl.enabled = true;
     this.orbitControl.customBehavior = true;
     this.orbitControl.enableDamping = true;
@@ -48,12 +48,11 @@ export class CharacterControls {
     this.orbitControl.enablePan = false;
     this.orbitControl.enableZoom = false;
     this.orbitControl.maxPolarAngle = pi / 2 - 0.05;
-    this.camera = camera;
 
   }
 
   private isRunning(){
-    return World.keysPressed[ControlKeys.SHIFT] || World.ui.characterControl.running
+    return World.keysPressed[ControlKeys.SHIFT] || JoyStickControl.intensity > 0.8
   }
 
   set enabled(k){
@@ -78,8 +77,8 @@ export class CharacterControls {
     let isFromJoyStick = false;
     let directionPressed = this.DIRECTIONS.some(key => World.keysPressed[key] == true);
     if(!directionPressed){
-      directionPressed = World.ui.characterControl.running || World.ui.characterControl.walking;
-      isFromJoyStick =true;
+      directionPressed = JoyStickControl.intensity > 0;
+      isFromJoyStick = JoyStickControl.intensity > 0;
     }
 
     var play = '';
@@ -96,18 +95,19 @@ export class CharacterControls {
     if (character.actionSelected == 'running' || character.actionSelected == 'walking') {
       // calculate towards camera direction
       var angleYCameraDirection = Math.atan2(
-        (this.camera.position.x - character.obj.position.x),
-        (this.camera.position.z - character.obj.position.z))
+        (this.cameraContainer.position.x - character.obj.position.x),
+        (this.cameraContainer.position.z - character.obj.position.z))
 
       // diagonal movement angle offset
-      var directionOffset = isFromJoyStick ? World.ui.characterControl.directionAngle   : this.directionOffsetFromKeys(World.keysPressed);
+      var directionOffset = isFromJoyStick ? JoyStickControl.directionAngle   : this.directionOffsetFromKeys(World.keysPressed);
+      this.lastDirection = directionOffset;
 
       // rotate model
       this.rotateQuarternion.setFromAxisAngle(this.rotateAngle, angleYCameraDirection + directionOffset)
       character.obj.quaternion.rotateTowards(this.rotateQuarternion, 0.2)
 
       // calculate direction
-      this.camera.getWorldDirection(this.walkDirection)
+      World.camera.getWorldDirection(this.walkDirection)
       this.walkDirection.y = 0
       this.walkDirection.normalize()
       this.walkDirection.applyAxisAngle(this.rotateAngle, directionOffset)
@@ -128,8 +128,8 @@ export class CharacterControls {
 
   private updateCameraTarget(obj:Object3D,moveX: number, moveZ: number) {
     // move camera
-    this.camera.position.x += moveX
-    this.camera.position.z += moveZ
+    this.cameraContainer.position.x += moveX
+    this.cameraContainer.position.z += moveZ
 
     // update camera target
     this.cameraTarget.x = obj.position.x
@@ -166,7 +166,7 @@ export class CharacterControls {
     if(directionOffset == null){
       directionOffset = this.lastDirection;
     }
-    this.lastDirection = directionOffset;
+
     return directionOffset
   }
 

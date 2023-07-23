@@ -15,31 +15,23 @@ import gsap from "gsap";
 import { CharacterControls } from './CharacterControls';
 import { FlowersManager } from '../components/FlowersManager';
 import { CustomOrbitControls } from './CustomOrbitControls';
-import { UIManager } from './UIManager/UIManager';
+import { UIManagerClass } from './UIManager/UIManager';
+import { World } from '../World';
 
-interface LoopTypes {
-  camera: PerspectiveCamera | OrthographicCamera;
-  scene: Scene;
-  renderer: WebGLRenderer | WebGL1Renderer;
-}
+
 
 const clock = new Clock();
 class Loop {
-  camera: LoopTypes['camera'];
-  scene: LoopTypes['scene'];
-  renderer: LoopTypes['renderer'];
   private mixers: (AnimationMixer|CharacterControls|FlowersManager)[];
-  private controls: (CustomOrbitControls|UIManager)[];
+  private controls: (CustomOrbitControls|UIManagerClass)[];
   stats: Stats;
 
-  constructor({ camera, scene, renderer }: LoopTypes) {
-    this.camera = camera;
-    this.scene = scene;
-    this.renderer = renderer;
+  constructor() {
     this.mixers = [];
     this.controls = [];
     this.stats = Stats();
     document.body.appendChild(this.stats.dom);
+    gsap.ticker.remove(gsap.updateRoot);
   }
 
   addMixer(mixer:AnimationMixer|CharacterControls|FlowersManager){
@@ -56,11 +48,11 @@ class Loop {
   }
 
 
-  addControls(control:CustomOrbitControls|UIManager){
+  addControls(control:CustomOrbitControls|UIManagerClass){
     this.controls.push(control);
   }
-  removeControls(control_:CustomOrbitControls|UIManager){
-    let newControls:(CustomOrbitControls|UIManager)[] = [];
+  removeControls(control_:CustomOrbitControls|UIManagerClass){
+    let newControls:(CustomOrbitControls|UIManagerClass)[] = [];
     for (const control of this.controls) {
       if(control != control_){
         newControls.push(control)
@@ -69,18 +61,23 @@ class Loop {
     this.controls = newControls;
   }
   start() {
-    gsap.ticker.add(() => {
-      this.tick();
+    let this_ = this;
+    World.renderer.setAnimationLoop(  () =>{
+      this_.tick();
       RenderComposer.render()
-      this.stats.update();
-    })
+      this_.stats.update();
+      World.renderer.xr.getCamera().position.copy( World.elements.camera.position);
+      World.renderer.xr.updateCamera( World.camera)
+    } );
+
   }
 
   stop() {
-    this.renderer.setAnimationLoop(null);
+    World.renderer.setAnimationLoop(null);
   }
 
   tick() {
+    gsap.updateRoot(clock.elapsedTime);
     const delta: number = clock.getDelta();
     for (const mixer of this.mixers) {
       mixer.update(delta);
