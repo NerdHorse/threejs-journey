@@ -2,7 +2,7 @@ const path = require('path')
 
 module.exports = {
   mode: 'development',
-  entry: './src/UIScreenMain.ts',
+  entry: './src/main.ts',
   devServer: {
     port: 9000,
     static: {
