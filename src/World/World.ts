@@ -39,7 +39,7 @@ import { CharacterControls } from './systems/CharacterControls';
 import { FlowersManager } from './components/FlowersManager';
 import { CustomOrbitControls } from './systems/CustomOrbitControls';
 import { UIManager } from './systems/UIManager/UIManager';
-import { VRButton } from 'three/examples/jsm/webxr/VRButton.js';
+import { VRButton } from './systems/VRButton';
 
 
 class WorldClass {
@@ -315,7 +315,13 @@ class WorldClass {
 
     this.container.append(this.renderer.domElement);
 
-    document.body.appendChild( VRButton.createButton( this.renderer ) );
+
+    VRButton.createButton( this.renderer ).then((btn)=>{
+
+      document.body.appendChild( btn);
+    }).catch((e)=>{
+      console.warn(e)
+    })
 
 
 
